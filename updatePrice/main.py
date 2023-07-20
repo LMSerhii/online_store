@@ -124,9 +124,11 @@ class UpdatePrice:
 
         for i in range(10, sheet.rowCount + 1):
             vendor_code = sheet[f'B{i}']
+            
+
 
             if vendor_code == vc_export:
-                # print(f'{vendor_code} == {vc_export}')
+                print(f'{vendor_code} == {vc_export}')
 
                 price = sheet[f'E{i}']
 
@@ -134,9 +136,14 @@ class UpdatePrice:
                     price = price.replace('$', '').replace(',', '.').strip()
 
                 availability = sheet[f'H{i}']
+
+                print(availability)
+
             else:
+                print(f'{vendor_code} != {vc_export}')
++
                 price = 0
-                availability = ''
+                availability = None
 
             return price, availability
 
@@ -170,6 +177,7 @@ class UpdatePrice:
             if self.__vendor_validation(worksheet=ws, itr=i):
                 continue
 
+
             rate = self.__get_rate(worksheet=ws, itr=i, rate_column=rate_column)
 
             if rate == None:
@@ -190,11 +198,30 @@ class UpdatePrice:
 
         return "Successful updated"
 
-    def updateEpik(self, rate):
+    def updateEpik(self, rate, from_price=None):
         wb = load_workbook(filename=self.export_path)
         ws = wb.active
 
         for i in range(2, ws.max_row + 1):
+
+            if from_price is not None:
+
+                vencod_export = ws[f'{self.vendor_code_coll}{i}'].value
+                vc_export = vencod_export.split('|')[-3]
+                # print(vc_export)
+
+                price, availability = self.__get_price(sheet_id=from_price, vc_export=vc_export)
+                # print(availability)
+
+                if availability is None:
+                    continue
+
+                elif availability is True:
+                    ws[f'H{i}'].value = 'в наявності'
+
+                elif availability is False:
+                    ws[f'H{i}'].value = 'немає в наявності'
+
             new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
 
             ws[f'E{i}'].value = new_price
@@ -221,15 +248,15 @@ class UpdatePrice:
 
 def main():
     export = UpdatePrice(
-        export_path=r"C:\Users\admin\Desktop\grand_or.xlsx",
+        export_path=r"C:\Users\admin\Desktop\shuriki.xlsx",
         marg=100,
         or_marg=430,
         curr=37.5,
         rate_sell=25,
-        vcc='A'
+        vcc='D'
     )
 
-    print(export.updateProm(from_price='1MGwJnpVdbBygL2SWSb7DQyybirzMYrH9RhsM_vzcLAI'))
+    print(export.updateEpik(rate=15, from_price='1MGwJnpVdbBygL2SWSb7DQyybirzMYrH9RhsM_vzcLAI'))
 
     # res = export.royalty(36 * 37.5 + 50, 0)
     # print(res)
