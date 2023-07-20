@@ -126,7 +126,6 @@ class UpdatePrice:
             vendor_code = sheet[f'B{i}']
             
 
-
             if vendor_code == vc_export:
                 print(f'{vendor_code} == {vc_export}')
 
@@ -137,15 +136,7 @@ class UpdatePrice:
 
                 availability = sheet[f'H{i}']
 
-                print(availability)
-
-            else:
-                print(f'{vendor_code} != {vc_export}')
-+
-                price = 0
-                availability = None
-
-            return price, availability
+                return price, availability
 
 
     def __put_id_prom(self, worksheet, itr, sheet_id):
@@ -153,9 +144,11 @@ class UpdatePrice:
         vencod_export = worksheet[f'{self.vendor_code_coll}{itr}'].value
         vc_export = vencod_export.split('|')[-3]
 
-        price, availability = self.__get_price(sheet_id=sheet_id, vc_export=vc_export)
+        result = self.__get_price(sheet_id=sheet_id, vc_export=vc_export)
 
-        if price != 0:
+        if result is not None:
+
+            price, availability = result
 
             if availability:
                 worksheet[f'P{itr}'].value = '!'
@@ -184,7 +177,9 @@ class UpdatePrice:
                 rate = 0
 
             if from_price is not None:
-                self.__put_id_prom(worksheet=ws, itr=i, sheet_id=from_price)
+                result = self.__put_id_prom(worksheet=ws, itr=i, sheet_id=from_price)
+                if result is None:
+                    print(f"{ws[f'B{i}']} was not found")
 
             new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
             discount, date_start, date_end = self.__availability(worksheet=ws, itr=i)
@@ -208,19 +203,17 @@ class UpdatePrice:
 
                 vencod_export = ws[f'{self.vendor_code_coll}{i}'].value
                 vc_export = vencod_export.split('|')[-3]
-                # print(vc_export)
 
-                price, availability = self.__get_price(sheet_id=from_price, vc_export=vc_export)
-                # print(availability)
+                result = self.__get_price(sheet_id=from_price, vc_export=vc_export)
 
-                if availability is None:
-                    continue
+                if result is not None:
 
-                elif availability is True:
-                    ws[f'H{i}'].value = 'в наявності'
+                    price, availability = result
 
-                elif availability is False:
-                    ws[f'H{i}'].value = 'немає в наявності'
+                    if availability:
+                        ws[f'H{i}'].value = 'в наявності'
+                    else:
+                        ws[f'H{i}'].value = 'немає в наявності'
 
             new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
 
