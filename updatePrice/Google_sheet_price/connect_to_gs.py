@@ -1,7 +1,13 @@
 import re
+import os
 
 import ezsheets
+
+from dotenv import load_dotenv
+
 from openpyxl import load_workbook
+
+load_dotenv()
 
 
 class GPrice:
@@ -9,9 +15,15 @@ class GPrice:
     __ITEMS_SHEET_LIST = []
     __ITEMS_EXCEL_LIST = []
 
-    def __init__(self, sheet_id, path_file=None):
+    def __init__(self, sheet_id, path_file=None, vcc_gs='B', price_col_gs='E', av_col_gs='H', vcc_ex='B',  price_col_ex='H', av_col_ex='G'):
         self.sheet_id = sheet_id
         self.path_file = path_file
+        self.vcc_gs = vcc_gs
+        self.price_col_gs = price_col_gs
+        self.av_col_gs = av_col_gs
+        self.vcc_ex = vcc_ex
+        self.price_col_ex = price_col_ex
+        self.av_col_ex = av_col_ex
 
     def connect_to_google(self):
         ss = ezsheets.Spreadsheet(self.sheet_id)
@@ -19,8 +31,8 @@ class GPrice:
         return sheet
 
     def __add_to_list_sheet(self, sheet):
-        for i in range(1, 113):
-            vc_sheet = sheet[f'C{i}']
+        for i in range(1, sheet.rowCount + 1):
+            vc_sheet = sheet[f'{self.vcc_gs}{i}']
 
             if self.__valid_vendor_code(vc_sheet):
                 continue
@@ -34,7 +46,7 @@ class GPrice:
 
     def __add_to_list_excel(self, excel_sheet):
         for j in range(1, excel_sheet.max_row + 1):
-            vc_excel = excel_sheet[f'B{j}'].value
+            vc_excel = excel_sheet[f'{self.vcc_ex}{j}'].value
 
             if self.__valid_vendor_code(vc_excel):
                 continue
@@ -42,10 +54,17 @@ class GPrice:
             self.__ITEMS_EXCEL_LIST.append(vc_excel)
 
     def __valid_vendor_code(self, vc):
-        if vc == '' or vc is None:
+        title_list = ['ФОТО', 'Артикул', 'Наименование товара', 'Основные параметры',
+                      'Цена/USD', 'Цена/UAH', 'Количество в ящике', 'Наличие', 'Цена']
+
+        if vc == '':
             return True
-        elif re.match(r'^Артикул', vc):
+        elif vc is None:
             return True
+
+        for name in title_list:
+            if re.match(fr'^{name}', vc):
+                return True
 
     def __valid_price(self, price):
         if isinstance(price, str) and '$' in price:
@@ -54,15 +73,15 @@ class GPrice:
 
     def __not_availability(self, sheet):
 
-        for i in range(1, 113):
-            vc_sheet = sheet[f'C{i}']
+        for i in range(1, sheet.rowCount + 1):
+            vc_sheet = sheet[f'{self.vcc_gs}{i}']
 
             if self.__valid_vendor_code(vc_sheet):
                 continue
 
             for item in self.__ITEMS_SHEET_LIST:
                 if vc_sheet == item:
-                    sheet[f"I{i}"] = "FALSE"
+                    sheet[f"{self.av_col_gs}{i}"] = "FALSE"
 
     def updatePrice(self):
         sheet = self.connect_to_google()
@@ -71,34 +90,37 @@ class GPrice:
         excel_sheet = self.__connect_to_excel()
         self.__add_to_list_excel(excel_sheet)
 
-        for i in range(1, 113):
-            vc_sheet = sheet[f'C{i}']
+        for i in range(1, sheet.rowCount + 1):
+            vc_sheet = sheet[f'{self.vcc_gs}{i}']
 
             if self.__valid_vendor_code(vc_sheet):
                 continue
 
-            price = self.__valid_price(sheet[f"F{i}"])
-            availability = sheet[f"I{i}"]
+            price = self.__valid_price(sheet[f"{self.price_col_gs}{i}"])
+            availability = sheet[f"{self.av_col_gs}{i}"]
 
             for j in range(1, excel_sheet.max_row + 1):
-                vc_excel = excel_sheet[f'B{j}'].value
+                vc_excel = excel_sheet[f'{self.vcc_ex}{j}'].value
 
                 if self.__valid_vendor_code(vc_excel):
                     continue
 
-                price_excel = self.__valid_price(excel_sheet[f"H{j}"].value)
-                availability_excel = excel_sheet[f"G{j}"].value
+                price_excel = self.__valid_price(excel_sheet[f"{self.price_col_ex}{j}"].value)
+                availability_excel = excel_sheet[f"{self.av_col_ex}{j}"].value
 
                 if vc_excel == vc_sheet:
-
-                    self.__ITEMS_SHEET_LIST.remove(vc_sheet)
+                    try:
+                        self.__ITEMS_SHEET_LIST.remove(vc_sheet)
+                    except Exception as ex:
+                        print(ex)
+                        print(vc_sheet)
                     self.__ITEMS_EXCEL_LIST.remove(vc_excel)
 
                     if price_excel != price:
-                        sheet[f"F{i}"] = price_excel
+                        sheet[f"{self.price_col_gs}{i}"] = price_excel
 
                     if availability_excel == '+':
-                        sheet[f"I{i}"] = 'TRUE'
+                        sheet[f"{self.av_col_gs}{i}"] = 'TRUE'
 
                     # print(f'{vc_sheet} -- {price} -- {availability} /'
                     #       f' {vc_excel} -- {price_excel} -- {availability_excel}')
@@ -110,12 +132,15 @@ class GPrice:
 
 
 def main():
-    # up = GPrice(
-    #     sheet_id='1MGwJnpVdbBygL2SWSb7DQyybirzMYrH9RhsM_vzcLAI',
-    #     path_file=r"C:\Users\admin\Downloads\Электроинструмент Grand д.xlsx"
-    # )
-    # up.updatePrice()
-    print("hello")
+    up = GPrice(
+        sheet_id=os.getenv('GRAND'),
+        path_file=r"C:\Users\admin\Downloads\Электроинструмент Grand д.xlsx"
+    )
+    up.updatePrice()
+    # res = up.connect_to_google()
+    # print(res.title)
+    # print(os.getenv('GRAND'))
+
 
 if __name__ == '__main__':
     main()
