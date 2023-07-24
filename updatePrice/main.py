@@ -1,3 +1,4 @@
+import os
 import json
 import math
 import re
@@ -5,9 +6,11 @@ from datetime import date
 
 import ezsheets
 
+from dotenv import load_dotenv
+
 from openpyxl import load_workbook
 
-
+load_dotenv()
 
 class UpdatePrice:
     def __init__(self, export_path, marg, or_marg, curr, rate_sell, vcc):
@@ -127,7 +130,8 @@ class UpdatePrice:
             
 
             if vendor_code == vc_export:
-                print(f'{vendor_code} == {vc_export}')
+                # print(f'{vendor_code} == {vc_export}')
+                
 
                 price = sheet[f'E{i}']
 
@@ -135,6 +139,8 @@ class UpdatePrice:
                     price = price.replace('$', '').replace(',', '.').strip()
 
                 availability = sheet[f'H{i}']
+
+                # print(f'Vendor_code: {vendor_code}, Price: {price}, Availability: {availability}')
 
                 return price, availability
 
@@ -157,7 +163,6 @@ class UpdatePrice:
 
             if re.match(r'^OR|\*', vencod_export):
                 worksheet[f'{self.vendor_code_coll}{itr}'].value = f'OR|{vc_export}||000{price}'
-
             else:
                 worksheet[f'{self.vendor_code_coll}{itr}'].value = f'{vc_export}||000{price}'
 
@@ -210,10 +215,15 @@ class UpdatePrice:
 
                     price, availability = result
 
-                    if availability:
+
+                    if availability == "TRUE":
                         ws[f'H{i}'].value = 'в наявності'
-                    else:
+                    elif availability == "FALSE":
                         ws[f'H{i}'].value = 'немає в наявності'
+                        
+                else:
+
+                    print(f'{vencod_export} was not found')
 
             new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
 
@@ -240,8 +250,9 @@ class UpdatePrice:
 
 
 def main():
+
     export = UpdatePrice(
-        export_path=r"C:\Users\admin\Desktop\shuriki.xlsx",
+        export_path=r"C:\Users\admin\Desktop\дрилі.xlsx",
         marg=100,
         or_marg=430,
         curr=37.5,
@@ -249,9 +260,9 @@ def main():
         vcc='D'
     )
 
-    print(export.updateEpik(rate=15, from_price='1MGwJnpVdbBygL2SWSb7DQyybirzMYrH9RhsM_vzcLAI'))
+    print(export.updateEpik(rate=15, from_price=os.getenv('GRAND')))
 
-    # res = export.royalty(36 * 37.5 + 50, 0)
+    # res = export.royalty(37 * 37.5 + 400, 0)
     # print(res)
     # print(export.royalty(res, 25))
 
