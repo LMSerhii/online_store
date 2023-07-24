@@ -109,11 +109,9 @@ class GPrice:
                 availability_excel = excel_sheet[f"{self.av_col_ex}{j}"].value
 
                 if vc_excel == vc_sheet:
-                    try:
-                        self.__ITEMS_SHEET_LIST.remove(vc_sheet)
-                    except Exception as ex:
-                        print(ex)
-                        print(vc_sheet)
+
+                    
+                    self.__ITEMS_SHEET_LIST.remove(vc_sheet)       
                     self.__ITEMS_EXCEL_LIST.remove(vc_excel)
 
                     if price_excel != price:
@@ -133,10 +131,14 @@ class GPrice:
 
 def main():
     up = GPrice(
-        sheet_id=os.getenv('GRAND'),
-        path_file=r"C:\Users\admin\Downloads\Электроинструмент Grand д.xlsx"
+        sheet_id=os.getenv('ELTOS'),
+        path_file=r"C:\Users\admin\Downloads\ELTOS (германия) диллерский.xlsx",
+        vcc_ex='B',
+        price_col_ex='E',
+        av_col_ex='G'
     )
     up.updatePrice()
+
     # res = up.connect_to_google()
     # print(res.title)
     # print(os.getenv('GRAND'))
