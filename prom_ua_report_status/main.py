@@ -1,24 +1,31 @@
 import re
+import os
 
 import pandas as pd
 import requests
+
 from tqdm import tqdm
 
-from cookies_and_headers import cookies, headers
+
+from get_status import Status
+from headers_cookies import headers, cookies
 
 
 class ExportProm:
 
-    def __init__(self, custom_status_id, month='current_month', current_course=37.5):
+    def __init__(self, custom_status_id, month='current_month', current_course=37.5, status=False):
         self.custom_status_id = custom_status_id
         self.month = month
         self.current_course = current_course
+        self.status = status
 
     def __valid_pp(self, sku, quantity):
         if '||' in sku:
             return float(sku.split('||')[-1]) * quantity * self.current_course
         elif '|' in sku:
             return float(sku.split('|')[-1]) * quantity
+        else:
+            print(f"Didn't find price: {sku}")
 
     def get_delivery_data(self, id, doid, ctp=None):
         if doid == 4898969:
@@ -66,10 +73,17 @@ class ExportProm:
             return barcode, price
 
         else:
-            barcode = ''
-            price = ''
+            barcode = None
+            price = None
 
             return barcode, price
+
+    def __collect_barcode(self, data):
+        res = re.search(r'[0-9]{12,14}', data)
+        if res:
+            return res.group(0)
+        else:
+            return None
 
     def get_data(self):
         """ """
@@ -106,41 +120,62 @@ class ExportProm:
                 payment_option_name = order.get('payment_option_name')
 
                 labels = order.get('labels')
-                comments = ', '.join([label.get('name').replace(' ', '') for label in labels])
+                comments = ', '.join(
+                    [label.get('name').replace(' ', '') for label in labels])
 
                 added_items = order.get('added_items')
 
                 delivery_option_id = order.get('delivery_option_id')
 
                 price_text = order.get('price_text')
+
                 cart_total_price = price_text[:-1].replace(',', '.').replace('\xa0', '').strip() if '₴' in price_text \
                     else price_text.replace(',', '.').replace('\xa0', '').strip()
                 cart_total_price = cart_total_price
 
-                barcode, price = self.get_delivery_data(id=id, doid=delivery_option_id, ctp=cart_total_price)
+                barcode, price = self.get_delivery_data(
+                    id=id, doid=delivery_option_id, ctp=cart_total_price)
 
                 purchase_price = None
                 margin = None
-                status = None
+
+                if barcode is None:
+                    barcode = self.__collect_barcode(data=comments)
+
+                try:
+
+                    if self.status:
+                        st = Status()
+                        status = st.getStatus(barcode=barcode)
+                    else:
+                        status = None
+                except Exception as ex:
+                    print(ex)
+                    print(id)
 
                 # ----------------------------------------------------------------------------------
                 if len(added_items) > 1:
 
-                    for item in added_items[:1]:
+                    purchase_price = 0
+
+                    for item in added_items:
                         sku = item.get('sku')
                         quantity = item.get('quantity')
 
-                        purchase_price = self.__valid_pp(sku, quantity)
+                        purchase_price += self.__valid_pp(sku, quantity)
 
-                        data_list.append(
-                            [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
-                             price, purchase_price, margin, status])
+                    sku = added_items[0].get('sku')
+                    quantity = added_items[0].get('quantity')
+
+                    data_list.append(
+                        [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
+                            price, purchase_price, margin, status])
 
                     # Остальные позиции проставляем с ценой и стоимостью доставки в ноль, что бы не дублировать
                     for item in added_items[1:]:
-                        sku = item.get('sku')
                         quantity = item.get('quantity')
 
+                        sku = ''
                         price = 0
                         purchase_price = 0
 
@@ -168,7 +203,8 @@ class ExportProm:
 
 
 def main():
-    ex = ExportProm(custom_status_id=136894, month='June', current_course=37.5)
+    ex = ExportProm(custom_status_id=140427, month='September',
+                    current_course=39, status=True)
     ex.get_data()
 
 

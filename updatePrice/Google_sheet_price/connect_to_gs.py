@@ -1,3 +1,4 @@
+import json
 import re
 import os
 
@@ -11,11 +12,11 @@ load_dotenv()
 
 
 class GPrice:
-
     __ITEMS_SHEET_LIST = []
     __ITEMS_EXCEL_LIST = []
 
-    def __init__(self, sheet_id, path_file=None, vcc_gs='B', price_col_gs='E', av_col_gs='H', vcc_ex='B',  price_col_ex='H', av_col_ex='G'):
+    def __init__(self, sheet_id, path_file=None, vcc_gs='B', price_col_gs='E', av_col_gs='H', vcc_ex='B',
+                 price_col_ex='H', av_col_ex='G'):
         self.sheet_id = sheet_id
         self.path_file = path_file
         self.vcc_gs = vcc_gs
@@ -24,6 +25,19 @@ class GPrice:
         self.vcc_ex = vcc_ex
         self.price_col_ex = price_col_ex
         self.av_col_ex = av_col_ex
+
+    def __valid_vendor_code(self, vc):
+        title_list = ['ФОТО', 'Артикул', 'Наименование товара', 'Основные параметры',
+                      'Цена/USD', 'Цена/UAH', 'Количество в ящике', 'Наличие', 'Цена']
+
+        if vc == '':
+            return True
+        elif vc is None:
+            return True
+
+        for name in title_list:
+            if re.match(fr'^{name}', vc):
+                return True
 
     def connect_to_google(self):
         ss = ezsheets.Spreadsheet(self.sheet_id)
@@ -52,19 +66,6 @@ class GPrice:
                 continue
 
             self.__ITEMS_EXCEL_LIST.append(vc_excel)
-
-    def __valid_vendor_code(self, vc):
-        title_list = ['ФОТО', 'Артикул', 'Наименование товара', 'Основные параметры',
-                      'Цена/USD', 'Цена/UAH', 'Количество в ящике', 'Наличие', 'Цена']
-
-        if vc == '':
-            return True
-        elif vc is None:
-            return True
-
-        for name in title_list:
-            if re.match(fr'^{name}', vc):
-                return True
 
     def __valid_price(self, price):
         if isinstance(price, str) and '$' in price:
@@ -110,8 +111,7 @@ class GPrice:
 
                 if vc_excel == vc_sheet:
 
-                    
-                    self.__ITEMS_SHEET_LIST.remove(vc_sheet)       
+                    self.__ITEMS_SHEET_LIST.remove(vc_sheet)
                     self.__ITEMS_EXCEL_LIST.remove(vc_excel)
 
                     if price_excel != price:
@@ -125,16 +125,24 @@ class GPrice:
 
         self.__not_availability(sheet)
 
-        print(f'NEW ITEMS: {self.__ITEMS_EXCEL_LIST}')
-        print(f'NOT AVAILABILITY: {self.__ITEMS_SHEET_LIST}')
+        # print(f'NEW ITEMS: {self.__ITEMS_EXCEL_LIST}')
+        # print(f'NOT AVAILABILITY: {self.__ITEMS_SHEET_LIST}')
+
+        data_dict = {
+            'NEW ITEMS': self.__ITEMS_EXCEL_LIST,
+            'NOT AVAILABILITY': self.__ITEMS_SHEET_LIST
+        }
+
+        with open('data_dict-eltos.json', 'w', encoding='utf-8') as file:
+            json.dump(data_dict, file, indent=4, ensure_ascii=False)
 
 
 def main():
     up = GPrice(
         sheet_id=os.getenv('ELTOS'),
-        path_file=r"C:\Users\admin\Downloads\ELTOS (германия) диллерский.xlsx",
+        path_file=r"C:\Users\admin\Downloads\Электроинструмент Grand-Eltos_д.xlsx",
         vcc_ex='B',
-        price_col_ex='E',
+        price_col_ex='H',
         av_col_ex='G'
     )
     up.updatePrice()

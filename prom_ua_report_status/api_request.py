@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import pprint
 
 import requests
 from dotenv import load_dotenv
@@ -16,7 +17,9 @@ class sendRequest:
     # UKR
     __PRODUCTION_BEARER_StatusTracking = os.getenv('PRODUCTION_BEARER_StatusTracking')
 
-    def __request_repeat(self, url, method, data=None, headers=None, retry=5):
+
+
+    def __request_repeat(self, url, data=None, headers=None, retry=5):
         """ """
         try:
             if data is not None:
@@ -26,7 +29,7 @@ class sendRequest:
         except Exception:
             time.sleep(3)
             if retry:
-                return self.__request_repeat(url, method, data, headers, retry=(retry - 1))
+                return self.__request_repeat(url, data, headers, retry=(retry - 1))
             else:
                 raise
         else:
@@ -53,7 +56,7 @@ class sendRequest:
                 ]
             }
         }
-        return self.__request_repeat(url, 'post', json.dumps(data), headers).json()
+        return self.__request_repeat(url=url,data=json.dumps(data), headers=headers).json()
 
     def request_to_ukr(self, barcode):
         """ """
@@ -63,19 +66,22 @@ class sendRequest:
         }
         url = f'https://www.ukrposhta.ua/status-tracking/0.0.1/statuses/last?barcode={barcode}'
 
-        return self.__request_repeat(url, 'get', headers)
+        return self.__request_repeat(url=url, headers=headers).json()
 
 
 def main():
-    # np = sendRequest()
-    # res = np.request_to_np(ttn='20450735460753')
 
-    ukr = sendRequest()
-    res = ukr.request_to_ukr(barcode='0504584249666')
-    print(res)
+    POST_NAME = 'UKR'
+    
+    if POST_NAME == 'NP':
+        np = sendRequest()
+        res = np.request_to_np(barcode='20450749477905')
+        pprint.pprint(res.get('data')[0].get('Status'))
 
-    # with open('data/result.json', 'w', encoding='utf-8') as file:
-    #     json.dump(res, file, indent=4, ensure_ascii=False)
+    elif POST_NAME == 'UKR':    
+        ukr = sendRequest()
+        res = ukr.request_to_ukr(barcode='0504270497177')
+        pprint.pprint(res.get('eventName'))
 
 
 if __name__ == '__main__':

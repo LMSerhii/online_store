@@ -7,13 +7,14 @@ from tqdm import tqdm
 from api_request import sendRequest
 
 
+
 class Status:
 
     def getStatus(self, barcode):
 
         req = sendRequest()
         if re.match(r'^204|^59', f'{barcode}'):
-            response = req.request_to_np(ttn=barcode)
+            response = req.request_to_np(barcode=barcode)
             return response.get('data')[0].get('Status')
         elif re.match(r'^050', f'{barcode}'):
             response = req.request_to_ukr(barcode=barcode)
@@ -24,7 +25,7 @@ class Status:
         else:
             return ''
 
-    def readExcel(self, path_to_path, ttn_col, status_col):
+    def readExcel(self, path_to_path, ttn_col='H', status_col='L'):
         wb = load_workbook(filename=path_to_path)
         sheet = wb.active
 
@@ -41,8 +42,10 @@ def main():
     path_file = r"C:\Users\admin\Desktop\order_list_February.xlsx"
     ttn_col = 'H'
     status_col = 'L'
+
     st = Status()
-    st.readExcel(path_file, ttn_col, status_col)
+    # st.readExcel(path_file, ttn_col, status_col)
+    print(st.getStatus(barcode='0504270497177'))
 
 
 if __name__ == "__main__":

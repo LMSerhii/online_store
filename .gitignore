@@ -163,3 +163,11 @@ credentials-sheets.json
 token-drive.pickle
 token-sheets.pickle
 .vscode
+updatePrice/token-drive.pickle
+updatePrice/token-sheets.pickle
+prom_ua_report_status/data/June.xlsx
+prom_ua_report_status/headers_cookies.py
+updatePrice/get_get.py
+updatePrice/token-drive.pickle
+updatePrice/token-drive.pickle
+updatePrice/token-sheets.pickle

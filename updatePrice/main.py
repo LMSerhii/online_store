@@ -2,7 +2,8 @@ import os
 import json
 import math
 import re
-from datetime import date
+import time
+import datetime
 
 import ezsheets
 
@@ -12,14 +13,16 @@ from openpyxl import load_workbook
 
 load_dotenv()
 
+
 class UpdatePrice:
-    def __init__(self, export_path, marg, or_marg, curr, rate_sell, vcc):
+    def __init__(self, export_path, marg, or_marg, curr, rate_sell, vcc, valuta='USD'):
         self.export_path = export_path
         self.margin = marg
         self.or_margin = or_marg
         self.curr = curr
         self.rate_sell = rate_sell
         self.vendor_code_coll = vcc
+        self.valuta = valuta
 
     def royalty(self, price, rate):
         result = (price / (100 - rate)) * 100
@@ -29,13 +32,14 @@ class UpdatePrice:
 
         vendor_code = worksheet[f'{self.vendor_code_coll}{itr}'].value
 
-        if re.match(r'^OR|\*', vendor_code):
+        if re.match(r'^OR\|+', vendor_code):
 
             if '||' in vendor_code:
 
                 pp = vendor_code.split('||')[-1]
 
-                new_price = self.royalty((float(pp) * self.curr + self.or_margin), rate)
+                new_price = self.royalty(
+                    (float(pp) * self.curr + self.or_margin), rate)
 
                 old_price = self.royalty(new_price, self.rate_sell)
 
@@ -46,9 +50,11 @@ class UpdatePrice:
                 pp = vendor_code.split('|')[-1]
 
                 if re.search(r'Т', vendor_code):
-                    new_price = self.royalty((float(pp) + self.or_margin + 150), rate)
+                    new_price = self.royalty(
+                        (float(pp) + self.or_margin + 150), rate)
                 else:
-                    new_price = self.royalty((float(pp) + self.or_margin), rate)
+                    new_price = self.royalty(
+                        (float(pp) + self.or_margin), rate)
 
                 old_price = self.royalty(new_price, self.rate_sell)
 
@@ -60,7 +66,8 @@ class UpdatePrice:
 
                 pp = vendor_code.split('||')[-1]
 
-                new_price = self.royalty((float(pp) * self.curr + self.margin), rate)
+                new_price = self.royalty(
+                    (float(pp) * self.curr + self.margin), rate)
 
                 old_price = self.royalty(new_price, self.rate_sell)
 
@@ -71,7 +78,8 @@ class UpdatePrice:
                 pp = vendor_code.split('|')[-1]
 
                 if re.search(r'Т', vendor_code):
-                    new_price = self.royalty((float(pp) + self.margin + 150), rate)
+                    new_price = self.royalty(
+                        (float(pp) + self.margin + 150), rate)
                 else:
                     new_price = self.royalty((float(pp) + self.margin), rate)
 
@@ -85,8 +93,10 @@ class UpdatePrice:
 
         if availability == '+' or availability == '!':
             discount = f'{self.rate_sell}%'
-            date_start = date.today().strftime('%d.%m.%Y')
-            date_end = date.today().replace(day=date.today().day + 7).strftime('%d.%m.%Y')
+
+            date_start = datetime.datetime.fromtimestamp(time.time()).strftime('%d.%m.%Y')
+
+            date_end = datetime.datetime.fromtimestamp(time.time() + 604800).strftime('%d.%m.%Y')
 
             return discount, date_start, date_end
 
@@ -125,15 +135,19 @@ class UpdatePrice:
         ss = ezsheets.Spreadsheet(sheet_id)
         sheet = ss.sheets[0]
 
-        for i in range(10, sheet.rowCount + 1):
+        for i in range(1, sheet.rowCount + 1):
             vendor_code = sheet[f'B{i}']
-            
 
-            if vendor_code == vc_export:
-                # print(f'{vendor_code} == {vc_export}')
-                
+            if vendor_code == '':
+                continue
 
-                price = sheet[f'E{i}']
+            if re.search(fr"\b{vendor_code}\b|\bOR\|{vendor_code}\b", vc_export):
+                print(f'{vendor_code} == {vc_export}')
+
+                if self.valuta == 'USD':
+                    price = sheet[f'E{i}']
+                elif self.valuta == 'UAH':
+                    price = sheet[f'F{i}']
 
                 if isinstance(price, str) and '$' in price:
                     price = price.replace('$', '').replace(',', '.').strip()
@@ -142,29 +156,39 @@ class UpdatePrice:
 
                 # print(f'Vendor_code: {vendor_code}, Price: {price}, Availability: {availability}')
 
-                return price, availability
-
+                return float(price), availability, vendor_code
 
     def __put_id_prom(self, worksheet, itr, sheet_id):
 
         vencod_export = worksheet[f'{self.vendor_code_coll}{itr}'].value
-        vc_export = vencod_export.split('|')[-3]
 
-        result = self.__get_price(sheet_id=sheet_id, vc_export=vc_export)
+        result = self.__get_price(sheet_id=sheet_id, vc_export=vencod_export)
+        # print(result)
 
         if result is not None:
 
-            price, availability = result
+            price, availability, vendor_code = result
 
-            if availability:
+            if availability == "TRUE":
                 worksheet[f'P{itr}'].value = '!'
-            else:
+            elif availability == "FALSE":
                 worksheet[f'P{itr}'].value = '-'
 
-            if re.match(r'^OR|\*', vencod_export):
-                worksheet[f'{self.vendor_code_coll}{itr}'].value = f'OR|{vc_export}||000{price}'
+            if re.search(r"\|\|", vencod_export):
+
+                if re.search(fr"\bOR", vencod_export):
+                    worksheet[f'{self.vendor_code_coll}{itr}'].value = f'OR|{vendor_code}||000{price}'
+                else:
+                    worksheet[f'{self.vendor_code_coll}{itr}'].value = f'{vendor_code}||000{price}'
+
             else:
-                worksheet[f'{self.vendor_code_coll}{itr}'].value = f'{vc_export}||000{price}'
+
+                if re.search(fr"\bOR", vencod_export):
+                    worksheet[f'{self.vendor_code_coll}{itr}'].value = f'OR|{vendor_code}|000{price}'
+                else:
+                    worksheet[f'{self.vendor_code_coll}{itr}'].value = f'{vendor_code}|000{price}'
+
+            return True
 
     def updateProm(self, rate_column='AA', from_price=None):
         wb = load_workbook(filename=self.export_path)
@@ -175,24 +199,32 @@ class UpdatePrice:
             if self.__vendor_validation(worksheet=ws, itr=i):
                 continue
 
-
-            rate = self.__get_rate(worksheet=ws, itr=i, rate_column=rate_column)
+            rate = self.__get_rate(worksheet=ws, itr=i,
+                                   rate_column=rate_column)
 
             if rate == None:
                 rate = 0
 
             if from_price is not None:
-                result = self.__put_id_prom(worksheet=ws, itr=i, sheet_id=from_price)
-                if result is None:
-                    print(f"{ws[f'B{i}']} was not found")
+                result = self.__put_id_prom(
+                    worksheet=ws, itr=i, sheet_id=from_price)
 
-            new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
-            discount, date_start, date_end = self.__availability(worksheet=ws, itr=i)
+                if result is None:
+                    print(f"{ws[f'A{i}'].value} was not found")
+
+            new_price, old_price = self.__vendor_code(
+                worksheet=ws, itr=i, rate=rate)
+            discount, date_start, date_end = self.__availability(
+                worksheet=ws, itr=i)
 
             ws[f'I{i}'].value = str(old_price)
             ws[f'AE{i}'].value = discount
+
             ws[f'AI{i}'].value = date_start
             ws[f'AJ{i}'].value = date_end
+
+            # print(f'[INFO] Row {i} completed')
+            print('=' * 70)
 
         wb.save(self.export_path)
 
@@ -207,42 +239,112 @@ class UpdatePrice:
             if from_price is not None:
 
                 vencod_export = ws[f'{self.vendor_code_coll}{i}'].value
-                vc_export = vencod_export.split('|')[-3]
 
-                result = self.__get_price(sheet_id=from_price, vc_export=vc_export)
+                result = self.__get_price(
+                    sheet_id=from_price, vc_export=vencod_export)
 
                 if result is not None:
 
-                    price, availability = result
-
+                    price, availability, vendor_code = result
 
                     if availability == "TRUE":
                         ws[f'H{i}'].value = 'в наявності'
                     elif availability == "FALSE":
                         ws[f'H{i}'].value = 'немає в наявності'
-                        
-                else:
 
+                    if re.search(r"\|\|", vencod_export):
+
+                        if re.match(r"^OR\|+", vencod_export):
+                            new_price = self.royalty(
+                                price * self.curr + self.or_margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+                        else:
+                            new_price = self.royalty(
+                                price * self.curr + self.margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+
+                    else:
+
+                        if re.match(r"^OR\|+", vencod_export):
+                            new_price = self.royalty(
+                                price + self.or_margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+                        else:
+                            new_price = self.royalty(
+                                price + self.margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+
+                    ws[f'E{i}'].value = str(new_price)
+                    ws[f'F{i}'].value = str(old_price)
+
+                else:
                     print(f'{vencod_export} was not found')
 
-            new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
+            else:
+                new_price, old_price = self.__vendor_code(
+                    worksheet=ws, itr=i, rate=rate)
 
-            ws[f'E{i}'].value = new_price
-            ws[f'F{i}'].value = old_price
+                ws[f'E{i}'].value = new_price
+                ws[f'F{i}'].value = old_price
 
-        wb.save(self.export_path)
+        wb.save(f'{self.export_path}')
 
         return "Successful updated"
 
-    def updateRozetka(self, rate):
+    def updateRozetka(self, rate, from_price=None):
         wb = load_workbook(filename=self.export_path)
         ws = wb.active
 
         for i in range(2, ws.max_row + 1):
-            new_price, old_price = self.__vendor_code(worksheet=ws, itr=i, rate=rate)
 
-            ws[f'I{i}'].value = new_price
-            ws[f'J{i}'].value = old_price
+            if from_price is not None:
+
+                vencod_export = ws[f'{self.vendor_code_coll}{i}'].value
+
+                result = self.__get_price(
+                    sheet_id=from_price, vc_export=vencod_export)
+
+                if result is not None:
+
+                    price, availability, vendor_code = result
+
+                    if availability == "TRUE":
+                        ws[f'P{i}'].value = 'Есть в наличии'
+                    elif availability == "FALSE":
+                        ws[f'P{i}'].value = 'Нет в наличии'
+
+                    if re.search(r"\|\|", vencod_export):
+
+                        if re.match(r"^OR\|+", vencod_export):
+                            new_price = self.royalty(
+                                price * self.curr + self.or_margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+                        else:
+                            new_price = self.royalty(
+                                price * self.curr + self.margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+
+                        ws[f'I{i}'].value = str(new_price)
+                        ws[f'J{i}'].value = str(old_price)
+
+                    else:
+                        if re.match(r"^OR\|+", vencod_export):
+                            new_price = self.royalty(
+                                price + self.or_margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+                        else:
+                            new_price = self.royalty(
+                                price + self.margin, rate)
+                            old_price = self.royalty(new_price, self.rate_sell)
+
+                        ws[f'I{i}'].value = str(new_price)
+                        ws[f'J{i}'].value = str(old_price)
+            else:
+                new_price, old_price = self.__vendor_code(
+                    worksheet=ws, itr=i, rate=rate)
+
+                ws[f'I{i}'].value = new_price
+                ws[f'J{i}'].value = old_price
 
         wb.save(self.export_path)
 
@@ -250,29 +352,111 @@ class UpdatePrice:
 
 
 def main():
+    MARKETPLACE = 'ROZETKA'
 
-    export = UpdatePrice(
-        export_path=r"C:\Users\admin\Desktop\дрилі.xlsx",
-        marg=100,
-        or_marg=430,
-        curr=37.5,
-        rate_sell=25,
-        vcc='D'
-    )
+    # PROM.UA
 
-    print(export.updateEpik(rate=15, from_price=os.getenv('GRAND')))
+    if MARKETPLACE == 'PROM':
 
-    # res = export.royalty(37 * 37.5 + 400, 0)
-    # print(res)
-    # print(export.royalty(res, 25))
+        export = UpdatePrice(
+            export_path=r"C:\Users\admin\Desktop\PROM\eltos.xlsx",
+            marg=70,
+            or_marg=400,
+            curr=39,
+            rate_sell=25,
+            vcc='A',
+            valuta='USD'
+        )
 
-    # while True:
-    #     margin = 430
-    #     rate = 18
-    #     rate_sell = 35
-    #     price = int(input('Enter price: '))
-    #     print(prom.royalty(price + margin, rate))
-    #     print(prom.royalty(prom.royalty(price + margin, rate), rate_sell))
+        print(export.updateProm(from_price=os.getenv('ELTOS')))
+
+    # EPICENTRIK.UA
+
+    elif MARKETPLACE == 'EPICENTR':
+
+        BASE_DIR = r"C:\Users\admin\Desktop\EPICENTR\household"
+        PRICE_LISTS = ["KORM"]
+
+        for path in os.listdir(BASE_DIR):
+
+            path_to_file = os.path.join(BASE_DIR, path)
+
+            export = UpdatePrice(
+                export_path=path_to_file,
+                marg=70,
+                or_marg=400,
+                curr=38.5,
+                rate_sell=22,
+                vcc='D',
+                valuta='UAH'
+            )
+
+            with open("epik_rate.json", "r", encoding="utf-8") as f:
+                file = json.load(f)
+
+            for item in file.get('rate'):
+                if re.match(rf'{item}', path.split('.')[0]):
+                    print(f"{item}:{file.get('rate').get(item)}")
+                    rate = file.get('rate').get(item)
+                    break
+
+            for price in PRICE_LISTS:
+                print(export.updateEpik(rate=rate, from_price=os.getenv(price)))
+
+    # ROZETKA.UA
+
+    if MARKETPLACE == 'ROZETKA':
+
+        BASE_DIR = r"C:\Users\admin\Desktop\Rozetka\GRAND"
+        PRICE_LISTS = ["GRAND", "ELTOS"]
+
+        for path in os.listdir(BASE_DIR):
+
+            path_to_file = os.path.join(BASE_DIR, path)
+
+            export = UpdatePrice(
+                export_path=path_to_file,
+                marg=65,
+                or_marg=400,
+                curr=39,
+                rate_sell=35,
+                vcc='E',
+                valuta='USD'
+            )
+
+            with open("rozetka_rate.json", "r", encoding="utf-8") as f:
+                file = json.load(f)
+
+            for item in file.get('rate'):
+                if re.match(rf'{item}', path.split('.')[0]):
+                    rate = file.get('rate').get(item)
+                    print(f"{item}:{file.get('rate').get(item)}")
+                    break
+
+            for price in PRICE_LISTS:
+                print(export.updateRozetka(rate=rate, from_price=os.getenv(price)))
+    # MANUAL
+
+    if MARKETPLACE == 'MANUAL':
+
+        export = UpdatePrice(
+            export_path=r"C:\Users\admin\Desktop\grand.xlsx",
+            marg=100,
+            or_marg=400,
+            curr=38.25,
+            rate_sell=15,
+            vcc='D'
+        )
+
+        while True:
+            margin = 150
+            rate = 0
+            rate_sell = 35
+            price = float(input('Enter price: '))
+            new_price = export.royalty(price + margin, rate)
+            old_price = export.royalty(new_price, rate_sell)
+            print(new_price)
+            print(old_price)
 
 
 if __name__ == '__main__':
