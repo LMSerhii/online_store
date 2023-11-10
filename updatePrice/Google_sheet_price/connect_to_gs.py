@@ -112,7 +112,11 @@ class GPrice:
                 if vc_excel == vc_sheet:
 
                     self.__ITEMS_SHEET_LIST.remove(vc_sheet)
-                    self.__ITEMS_EXCEL_LIST.remove(vc_excel)
+                    try:
+                        self.__ITEMS_EXCEL_LIST.remove(vc_excel)
+                    except Exception as ex:
+                        print(ex)
+                        print(vc_excel)
 
                     if price_excel != price:
                         sheet[f"{self.price_col_gs}{i}"] = price_excel
@@ -140,7 +144,7 @@ class GPrice:
 def main():
     up = GPrice(
         sheet_id=os.getenv('ELTOS'),
-        path_file=r"C:\Users\admin\Downloads\Электроинструмент Grand-Eltos_д.xlsx",
+        path_file=r"C:\Users\user\Desktop\GRAND.xlsx",
         vcc_ex='B',
         price_col_ex='H',
         av_col_ex='G'

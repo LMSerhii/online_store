@@ -359,11 +359,11 @@ def main():
     if MARKETPLACE == 'PROM':
 
         export = UpdatePrice(
-            export_path=r"C:\Users\admin\Desktop\PROM\eltos.xlsx",
+            export_path=r"C:\Users\user\Desktop\Генератори.xlsx",
             marg=70,
             or_marg=400,
-            curr=39,
-            rate_sell=25,
+            curr=38,
+            rate_sell=44,
             vcc='A',
             valuta='USD'
         )
@@ -407,7 +407,7 @@ def main():
 
     if MARKETPLACE == 'ROZETKA':
 
-        BASE_DIR = r"C:\Users\admin\Desktop\Rozetka\GRAND"
+        BASE_DIR = r"D:\Works\03_Rozetka\Гайковерти"
         PRICE_LISTS = ["GRAND", "ELTOS"]
 
         for path in os.listdir(BASE_DIR):
@@ -416,10 +416,10 @@ def main():
 
             export = UpdatePrice(
                 export_path=path_to_file,
-                marg=65,
+                marg=70,
                 or_marg=400,
-                curr=39,
-                rate_sell=35,
+                curr=38.3,
+                rate_sell=22,
                 vcc='E',
                 valuta='USD'
             )
@@ -449,8 +449,8 @@ def main():
         )
 
         while True:
-            margin = 150
-            rate = 0
+            margin = 50
+            rate = 15
             rate_sell = 35
             price = float(input('Enter price: '))
             new_price = export.royalty(price + margin, rate)

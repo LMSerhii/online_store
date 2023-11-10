@@ -7,7 +7,6 @@ from tqdm import tqdm
 from api_request import sendRequest
 
 
-
 class Status:
 
     def getStatus(self, barcode):
