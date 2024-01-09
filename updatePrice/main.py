@@ -202,6 +202,8 @@ class UpdatePrice:
             rate = self.__get_rate(worksheet=ws, itr=i,
                                    rate_column=rate_column)
 
+            print(rate)
+
             if rate == None:
                 rate = 0
 
@@ -284,8 +286,8 @@ class UpdatePrice:
                 new_price, old_price = self.__vendor_code(
                     worksheet=ws, itr=i, rate=rate)
 
-                ws[f'E{i}'].value = new_price
-                ws[f'F{i}'].value = old_price
+                ws[f'E{i}'].value = str(new_price)
+                ws[f'F{i}'].value = str(old_price)
 
         wb.save(f'{self.export_path}')
 
@@ -351,112 +353,127 @@ class UpdatePrice:
         return "Successful updated"
 
 
-def main():
-    MARKETPLACE = 'ROZETKA'
+def prom():
+    PRICE_LISTS = ["INCUBATOR"]
 
-    # PROM.UA
+    export = UpdatePrice(
+        export_path=r"D:\Works\02_PROM\incubatory.xlsx",
+        marg=70,
+        or_marg=330,
+        curr=40,
+        rate_sell=20,
+        vcc='A',
+        valuta='UAH'
+    )
 
-    if MARKETPLACE == 'PROM':
+    for price in PRICE_LISTS:
+        print(export.updateProm(from_price=os.getenv(price)))
+
+
+def epicentr():
+    BASE_DIR = r"D:\Works\01_EPICENTR\tools"
+    PRICE_LISTS = ["GRAND", "ELTOS"]
+
+    for path in os.listdir(BASE_DIR):
+
+        path_to_file = os.path.join(BASE_DIR, path)
 
         export = UpdatePrice(
-            export_path=r"C:\Users\user\Desktop\Генератори.xlsx",
-            marg=70,
-            or_marg=400,
-            curr=38,
-            rate_sell=44,
-            vcc='A',
+            export_path=path_to_file,
+            marg=100,
+            or_marg=330,
+            curr=39.5,
+            rate_sell=20,
+            vcc='D',
             valuta='USD'
         )
 
-        print(export.updateProm(from_price=os.getenv('ELTOS')))
+        with open("epik_rate.json", "r", encoding="utf-8") as f:
+            file = json.load(f)
 
-    # EPICENTRIK.UA
+        for item in file.get('rate'):
+            if re.match(rf'{item}', path.split('.')[0]):
+                print(f"{item}:{file.get('rate').get(item)}")
+                rate = file.get('rate').get(item)
+                break
 
-    elif MARKETPLACE == 'EPICENTR':
+        for price in PRICE_LISTS:
+            print(export.updateEpik(rate=rate, from_price=os.getenv(price)))
 
-        BASE_DIR = r"C:\Users\admin\Desktop\EPICENTR\household"
-        PRICE_LISTS = ["KORM"]
 
-        for path in os.listdir(BASE_DIR):
+def rozetka():
+    BASE_DIR = r"D:\Works\03_Rozetka\GRAND"
+    PRICE_LISTS = ["GRAND", "ELTOS"]
 
-            path_to_file = os.path.join(BASE_DIR, path)
+    for path in os.listdir(BASE_DIR):
 
-            export = UpdatePrice(
-                export_path=path_to_file,
-                marg=70,
-                or_marg=400,
-                curr=38.5,
-                rate_sell=22,
-                vcc='D',
-                valuta='UAH'
-            )
-
-            with open("epik_rate.json", "r", encoding="utf-8") as f:
-                file = json.load(f)
-
-            for item in file.get('rate'):
-                if re.match(rf'{item}', path.split('.')[0]):
-                    print(f"{item}:{file.get('rate').get(item)}")
-                    rate = file.get('rate').get(item)
-                    break
-
-            for price in PRICE_LISTS:
-                print(export.updateEpik(rate=rate, from_price=os.getenv(price)))
-
-    # ROZETKA.UA
-
-    if MARKETPLACE == 'ROZETKA':
-
-        BASE_DIR = r"D:\Works\03_Rozetka\Гайковерти"
-        PRICE_LISTS = ["GRAND", "ELTOS"]
-
-        for path in os.listdir(BASE_DIR):
-
-            path_to_file = os.path.join(BASE_DIR, path)
-
-            export = UpdatePrice(
-                export_path=path_to_file,
-                marg=70,
-                or_marg=400,
-                curr=38.3,
-                rate_sell=22,
-                vcc='E',
-                valuta='USD'
-            )
-
-            with open("rozetka_rate.json", "r", encoding="utf-8") as f:
-                file = json.load(f)
-
-            for item in file.get('rate'):
-                if re.match(rf'{item}', path.split('.')[0]):
-                    rate = file.get('rate').get(item)
-                    print(f"{item}:{file.get('rate').get(item)}")
-                    break
-
-            for price in PRICE_LISTS:
-                print(export.updateRozetka(rate=rate, from_price=os.getenv(price)))
-    # MANUAL
-
-    if MARKETPLACE == 'MANUAL':
+        path_to_file = os.path.join(BASE_DIR, path)
 
         export = UpdatePrice(
-            export_path=r"C:\Users\admin\Desktop\grand.xlsx",
-            marg=100,
-            or_marg=400,
-            curr=38.25,
+            export_path=path_to_file,
+            marg=70,
+            or_marg=330,
+            curr=39.5,
             rate_sell=15,
-            vcc='D'
+            vcc='E',
+            valuta='USD'
         )
 
-        while True:
-            margin = 50
-            rate = 15
-            rate_sell = 35
-            price = float(input('Enter price: '))
-            new_price = export.royalty(price + margin, rate)
-            old_price = export.royalty(new_price, rate_sell)
-            print(new_price)
-            print(old_price)
+        with open("rozetka_rate.json", "r", encoding="utf-8") as f:
+            file = json.load(f)
+
+        for item in file.get('rate'):
+            if re.match(rf'{item}', path.split('.')[0]):
+                rate = file.get('rate').get(item)
+                print(f"{item}:{file.get('rate').get(item)}")
+                break
+
+        for price in PRICE_LISTS:
+            print(export.updateRozetka(rate=rate, from_price=os.getenv(price)))
+
+
+def manual():
+    export = UpdatePrice(
+        export_path=r"C:\Users\admin\Desktop\grand.xlsx",
+        marg=100,
+        or_marg=400,
+        curr=38.25,
+        rate_sell=15,
+        vcc='D'
+    )
+
+    while True:
+        margin = 100
+        or_margin = 300
+        rate = 10.8
+        rate_sell = 15
+        price = float(input('Enter price: '))
+        new_price = export.royalty(price + margin, rate)
+        old_price = export.royalty(new_price, rate_sell)
+        or_new_price = export.royalty(price + or_margin, rate)
+        or_old_price = export.royalty(or_new_price, rate_sell)
+        print("=== TRUE PRICE ===")
+        print(new_price)
+        print(old_price)
+        print("=== ORIGINAL PRICE ===")
+        print(or_new_price)
+        print(or_old_price)
+        print("++++++ END +++++++")
+
+def main():
+    MARKETPLACE = 'PROM'
+
+    match MARKETPLACE:
+        case "MANUAL":
+            manual()
+        case "PROM":
+            prom()
+        case "EPICENTR":
+            epicentr()
+        case "ROZETKA":
+            rozetka()
+        case _:
+            print("You do not have any access to the code")
 
 
 if __name__ == '__main__':

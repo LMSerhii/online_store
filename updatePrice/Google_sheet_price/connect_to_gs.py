@@ -68,8 +68,13 @@ class GPrice:
             self.__ITEMS_EXCEL_LIST.append(vc_excel)
 
     def __valid_price(self, price):
+
         if isinstance(price, str) and '$' in price:
             price = price.replace('$', '').replace(',', '.').strip()
+
+        if price is None:
+            price = 0
+
         return float(price)
 
     def __not_availability(self, sheet):
@@ -98,6 +103,7 @@ class GPrice:
                 continue
 
             price = self.__valid_price(sheet[f"{self.price_col_gs}{i}"])
+
             availability = sheet[f"{self.av_col_gs}{i}"]
 
             for j in range(1, excel_sheet.max_row + 1):
@@ -112,6 +118,7 @@ class GPrice:
                 if vc_excel == vc_sheet:
 
                     self.__ITEMS_SHEET_LIST.remove(vc_sheet)
+
                     try:
                         self.__ITEMS_EXCEL_LIST.remove(vc_excel)
                     except Exception as ex:
@@ -137,14 +144,31 @@ class GPrice:
             'NOT AVAILABILITY': self.__ITEMS_SHEET_LIST
         }
 
-        with open('data_dict-eltos.json', 'w', encoding='utf-8') as file:
+        with open(f'data_dict-grand.json', 'w', encoding='utf-8') as file:
             json.dump(data_dict, file, indent=4, ensure_ascii=False)
+
+    def __replaceSpace(self, cell_value):
+
+        return cell_value.strip().replace('  ', '')
+
+    def editGS(self, target_column="C"):
+        sheet = self.connect_to_google()
+
+        for i in range(1, sheet.rowCount + 1):
+            cell_value = sheet[f'{target_column}{i}']
+
+            if self.__valid_vendor_code(cell_value):
+                continue
+
+            new_value = self.__replaceSpace(cell_value)
+
+            sheet[f'{target_column}{i}'] = new_value + " ELTOS"
 
 
 def main():
     up = GPrice(
-        sheet_id=os.getenv('ELTOS'),
-        path_file=r"C:\Users\user\Desktop\GRAND.xlsx",
+        sheet_id=os.getenv('GRAND'),
+        path_file=r"C:\Users\user\Downloads\Электроинструмент Grand-Eltos_д_2.xlsx",
         vcc_ex='B',
         price_col_ex='H',
         av_col_ex='G'
@@ -154,6 +178,8 @@ def main():
     # res = up.connect_to_google()
     # print(res.title)
     # print(os.getenv('GRAND'))
+
+    # up.editGS(target_column="C")
 
 
 if __name__ == '__main__':
