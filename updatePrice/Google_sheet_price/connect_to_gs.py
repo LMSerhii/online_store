@@ -167,8 +167,8 @@ class GPrice:
 
 def main():
     up = GPrice(
-        sheet_id=os.getenv('GRAND'),
-        path_file=r"C:\Users\user\Downloads\Электроинструмент Grand-Eltos_д_2.xlsx",
+        sheet_id=os.getenv('ELTOS'),
+        path_file=r"C:\Users\user\Downloads\Электроинструмент Grand-Eltos_д.xlsx",
         vcc_ex='B',
         price_col_ex='H',
         av_col_ex='G'

@@ -141,7 +141,7 @@ class UpdatePrice:
             if vendor_code == '':
                 continue
 
-            if re.search(fr"\b{vendor_code}\b|\bOR\|{vendor_code}\b", vc_export):
+            if re.search(fr"{vendor_code}\|\w+", vc_export):
                 print(f'{vendor_code} == {vc_export}')
 
                 if self.valuta == 'USD':
@@ -202,9 +202,7 @@ class UpdatePrice:
             rate = self.__get_rate(worksheet=ws, itr=i,
                                    rate_column=rate_column)
 
-            print(rate)
-
-            if rate == None:
+            if rate is None:
                 rate = 0
 
             if from_price is not None:
@@ -216,6 +214,7 @@ class UpdatePrice:
 
             new_price, old_price = self.__vendor_code(
                 worksheet=ws, itr=i, rate=rate)
+
             discount, date_start, date_end = self.__availability(
                 worksheet=ws, itr=i)
 
@@ -353,26 +352,28 @@ class UpdatePrice:
         return "Successful updated"
 
 
-def prom():
-    PRICE_LISTS = ["INCUBATOR"]
+def prom(path, prices, margin=70, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
+         vendor_code_column='A'):
+    PRICE_LISTS = prices
 
     export = UpdatePrice(
-        export_path=r"D:\Works\02_PROM\incubatory.xlsx",
-        marg=70,
-        or_marg=330,
-        curr=40,
-        rate_sell=20,
-        vcc='A',
-        valuta='UAH'
+        export_path=path,
+        marg=margin,
+        or_marg=original_margin,
+        curr=current_course,
+        rate_sell=rate_sell,
+        vcc=vendor_code_column,
+        valuta=valuta
     )
 
     for price in PRICE_LISTS:
         print(export.updateProm(from_price=os.getenv(price)))
 
 
-def epicentr():
-    BASE_DIR = r"D:\Works\01_EPICENTR\tools"
-    PRICE_LISTS = ["GRAND", "ELTOS"]
+def epicentr(base_dir, prices, margin=100, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
+             vendor_code_column='D'):
+    BASE_DIR = base_dir
+    PRICE_LISTS = prices
 
     for path in os.listdir(BASE_DIR):
 
@@ -380,12 +381,12 @@ def epicentr():
 
         export = UpdatePrice(
             export_path=path_to_file,
-            marg=100,
-            or_marg=330,
-            curr=39.5,
-            rate_sell=20,
-            vcc='D',
-            valuta='USD'
+            marg=margin,
+            or_marg=original_margin,
+            curr=current_course,
+            rate_sell=rate_sell,
+            vcc=vendor_code_column,
+            valuta=valuta
         )
 
         with open("epik_rate.json", "r", encoding="utf-8") as f:
@@ -401,9 +402,10 @@ def epicentr():
             print(export.updateEpik(rate=rate, from_price=os.getenv(price)))
 
 
-def rozetka():
-    BASE_DIR = r"D:\Works\03_Rozetka\GRAND"
-    PRICE_LISTS = ["GRAND", "ELTOS"]
+def rozetka(base_dir, prices, margin=100, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
+            vendor_code_column='E'):
+    BASE_DIR = base_dir
+    PRICE_LISTS = prices
 
     for path in os.listdir(BASE_DIR):
 
@@ -411,12 +413,12 @@ def rozetka():
 
         export = UpdatePrice(
             export_path=path_to_file,
-            marg=70,
-            or_marg=330,
-            curr=39.5,
-            rate_sell=15,
-            vcc='E',
-            valuta='USD'
+            marg=margin,
+            or_marg=original_margin,
+            curr=current_course,
+            rate_sell=rate_sell,
+            vcc=vendor_code_column,
+            valuta=valuta
         )
 
         with open("rozetka_rate.json", "r", encoding="utf-8") as f:
@@ -443,10 +445,10 @@ def manual():
     )
 
     while True:
-        margin = 100
-        or_margin = 300
-        rate = 10.8
-        rate_sell = 15
+        margin = 150
+        or_margin = 350
+        rate = 15
+        rate_sell = 30
         price = float(input('Enter price: '))
         new_price = export.royalty(price + margin, rate)
         old_price = export.royalty(new_price, rate_sell)
@@ -460,18 +462,19 @@ def manual():
         print(or_old_price)
         print("++++++ END +++++++")
 
+
 def main():
-    MARKETPLACE = 'PROM'
+    MARKETPLACE = 'MANUAL'
 
     match MARKETPLACE:
         case "MANUAL":
             manual()
         case "PROM":
-            prom()
+            prom(path=r"D:\Works\02_PROM\incubatory.xlsx", prices=["INCUBATOR"], valuta='UAH')
         case "EPICENTR":
-            epicentr()
+            epicentr(base_dir=r"D:\Works\01_EPICENTR\incubator", prices=['INCUBATOR'], valuta='UAH')
         case "ROZETKA":
-            rozetka()
+            rozetka(base_dir=r"D:\Works\03_Rozetka\Хозтовари\інкубатори", prices=['INCUBATOR'], valuta='UAH')
         case _:
             print("You do not have any access to the code")
 
