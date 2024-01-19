@@ -15,7 +15,7 @@ load_dotenv()
 
 
 class UpdatePrice:
-    def __init__(self, export_path, marg, or_marg, curr, rate_sell, vcc, valuta='USD'):
+    def __init__(self, export_path="", marg=100, or_marg=400, curr=40, rate_sell=15, vcc="D", valuta='USD'):
         self.export_path = export_path
         self.margin = marg
         self.or_margin = or_marg
@@ -141,7 +141,7 @@ class UpdatePrice:
             if vendor_code == '':
                 continue
 
-            if re.search(fr"{vendor_code}\|\w+", vc_export):
+            if re.search(fr"{vendor_code}\|\w+|{vendor_code}\|\|\w+", vc_export):
                 print(f'{vendor_code} == {vc_export}')
 
                 if self.valuta == 'USD':
@@ -434,25 +434,13 @@ def rozetka(base_dir, prices, margin=100, original_margin=300, current_course=39
             print(export.updateRozetka(rate=rate, from_price=os.getenv(price)))
 
 
-def manual():
-    export = UpdatePrice(
-        export_path=r"C:\Users\admin\Desktop\grand.xlsx",
-        marg=100,
-        or_marg=400,
-        curr=38.25,
-        rate_sell=15,
-        vcc='D'
-    )
-
+def manual(margin, original_margin, rate, rate_sell, curr):
+    export = UpdatePrice(curr=curr)
     while True:
-        margin = 150
-        or_margin = 350
-        rate = 15
-        rate_sell = 30
         price = float(input('Enter price: '))
         new_price = export.royalty(price + margin, rate)
         old_price = export.royalty(new_price, rate_sell)
-        or_new_price = export.royalty(price + or_margin, rate)
+        or_new_price = export.royalty(price + original_margin, rate)
         or_old_price = export.royalty(or_new_price, rate_sell)
         print("=== TRUE PRICE ===")
         print(new_price)
@@ -464,17 +452,17 @@ def manual():
 
 
 def main():
-    MARKETPLACE = 'MANUAL'
+    MARKETPLACE = 'PROM'
 
     match MARKETPLACE:
         case "MANUAL":
-            manual()
+            manual(margin=100, original_margin=400, rate=15, rate_sell=25, curr=38.5)
         case "PROM":
-            prom(path=r"D:\Works\02_PROM\incubatory.xlsx", prices=["INCUBATOR"], valuta='UAH')
+            prom(path=r"D:\Works\02_PROM\Grand.xlsx", prices=["GRAND"], valuta='USD')
         case "EPICENTR":
-            epicentr(base_dir=r"D:\Works\01_EPICENTR\incubator", prices=['INCUBATOR'], valuta='UAH')
+            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND', 'ELTOS'], valuta='USD', current_course=39)
         case "ROZETKA":
-            rozetka(base_dir=r"D:\Works\03_Rozetka\Хозтовари\інкубатори", prices=['INCUBATOR'], valuta='UAH')
+            rozetka(base_dir=r"D:\Works\03_Rozetka\GRAND", prices=["GRAND", "ELTOS"], valuta='USD', current_course=39)
         case _:
             print("You do not have any access to the code")
 
