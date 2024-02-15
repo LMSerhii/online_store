@@ -1,6 +1,16 @@
 {
     "NEW ITEMS": [
-
+        "GRDE850",
+        "GRDEU1250",
+        "GRMG670/12",
+        "GRMZS450",
+        "GRMSU2100",
+        "GRMSU2600",
+        "GRMSS185",
+        "GRAO12",
+        "GRAO16",
+        "GRBP5700",
+        "GRPD2350SE",
         "ElAPC20/12-4",
         "ELKG2700",
         "ELММА340",
@@ -13,6 +23,10 @@
         "BMBC3200"
     ],
     "NOT AVAILABILITY": [
+        "GRAPC20/4_old",
+        "GRPSM550",
+        "GRCUT50",
+        "GRCUT60",
         "FSPS2000I",
         "SRM- 520",
         "SRM-520 Pro"

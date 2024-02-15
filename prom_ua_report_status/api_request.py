@@ -17,8 +17,6 @@ class sendRequest:
     # UKR
     __PRODUCTION_BEARER_StatusTracking = os.getenv('PRODUCTION_BEARER_StatusTracking')
 
-
-
     def __request_repeat(self, url, data=None, headers=None, retry=5):
         """ """
         try:
@@ -56,7 +54,7 @@ class sendRequest:
                 ]
             }
         }
-        return self.__request_repeat(url=url,data=json.dumps(data), headers=headers).json()
+        return self.__request_repeat(url=url, data=json.dumps(data), headers=headers).json()
 
     def request_to_ukr(self, barcode):
         """ """
@@ -70,15 +68,14 @@ class sendRequest:
 
 
 def main():
-
     POST_NAME = 'UKR'
-    
+
     if POST_NAME == 'NP':
         np = sendRequest()
         res = np.request_to_np(barcode='20450749477905')
         pprint.pprint(res.get('data')[0].get('Status'))
 
-    elif POST_NAME == 'UKR':    
+    elif POST_NAME == 'UKR':
         ukr = sendRequest()
         res = ukr.request_to_ukr(barcode='0504270497177')
         pprint.pprint(res.get('eventName'))

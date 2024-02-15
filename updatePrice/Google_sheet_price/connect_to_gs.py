@@ -131,6 +131,9 @@ class GPrice:
                     if availability_excel == '+':
                         sheet[f"{self.av_col_gs}{i}"] = 'TRUE'
 
+                    if availability_excel == '-':
+                        sheet[f"{self.av_col_gs}{i}"] = 'FALSE'
+
                     # print(f'{vc_sheet} -- {price} -- {availability} /'
                     #       f' {vc_excel} -- {price_excel} -- {availability_excel}')
 
@@ -144,7 +147,7 @@ class GPrice:
             'NOT AVAILABILITY': self.__ITEMS_SHEET_LIST
         }
 
-        with open(f'data_dict-grand.json', 'w', encoding='utf-8') as file:
+        with open(f'grand_eltos.json', 'w', encoding='utf-8') as file:
             json.dump(data_dict, file, indent=4, ensure_ascii=False)
 
     def __replaceSpace(self, cell_value):
@@ -167,7 +170,7 @@ class GPrice:
 
 def main():
     up = GPrice(
-        sheet_id=os.getenv('ELTOS'),
+        sheet_id=os.getenv('GRAND_ELTOS'),
         path_file=r"C:\Users\user\Downloads\Электроинструмент Grand-Eltos_д.xlsx",
         vcc_ex='B',
         price_col_ex='H',

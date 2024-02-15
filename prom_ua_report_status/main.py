@@ -197,14 +197,14 @@ class ExportProm:
 
         df = pd.DataFrame(data_list,
                           columns=['id замовлення', 'Спосіб замовлення', 'ПІБ', 'Спосіб оплати', 'Кількість', 'Артикул',
-                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Статус замовлення'])
+                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Статус замовлення'])D:\Works\Online_store\prom_ua_report_status\data\November.xlsx
 
         df.to_excel(f'data/{self.month}.xlsx', index=None, header=True)
 
 
 def main():
-    ex = ExportProm(custom_status_id=140427, month='September',
-                    current_course=39, status=True)
+    ex = ExportProm(custom_status_id=144381, month='December',
+                    current_course=38.5)
     ex.get_data()
 
 
