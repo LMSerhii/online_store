@@ -6,7 +6,6 @@ import requests
 
 from tqdm import tqdm
 
-
 from get_status import Status
 from headers_cookies import headers, cookies
 
@@ -85,6 +84,27 @@ class ExportProm:
         else:
             return None
 
+    def __priceFinderFromSku(self, price, sku):
+
+        pattern = r'[-рсолхэпик ]\s*(\d+)'
+
+        match = re.search(pattern, sku)
+        if match:
+            price = match.group(1)
+            return price
+        else:
+            return price
+
+    def __pePattern(self, purchase_price, comments):
+        pattern = r'пе(\d+)'
+        match = re.search(pattern, comments)
+
+        if match:
+            purchase_price += match.group(1)
+            return purchase_price
+        else:
+            return purchase_price
+
     def get_data(self):
         """ """
         data_list = []
@@ -120,6 +140,7 @@ class ExportProm:
                 payment_option_name = order.get('payment_option_name')
 
                 labels = order.get('labels')
+
                 comments = ', '.join(
                     [label.get('name').replace(' ', '') for label in labels])
 
@@ -135,6 +156,9 @@ class ExportProm:
 
                 barcode, price = self.get_delivery_data(
                     id=id, doid=delivery_option_id, ctp=cart_total_price)
+
+                if price == '':
+                    price = self.__priceFinderFromSku(price, comments)
 
                 purchase_price = None
                 margin = None
@@ -167,9 +191,11 @@ class ExportProm:
                     sku = added_items[0].get('sku')
                     quantity = added_items[0].get('quantity')
 
+                    purchase_price = self.__pePattern(purchase_price, comments)
+
                     data_list.append(
                         [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
-                            price, purchase_price, margin, status])
+                         price, purchase_price, margin, status])
 
                     # Остальные позиции проставляем с ценой и стоимостью доставки в ноль, что бы не дублировать
                     for item in added_items[1:]:
@@ -191,13 +217,15 @@ class ExportProm:
 
                         purchase_price = self.__valid_pp(sku, quantity)
 
+                        purchase_price = self.__pePattern(purchase_price, comments)
+
                         data_list.append(
                             [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
                              price, purchase_price, margin, status])
 
         df = pd.DataFrame(data_list,
                           columns=['id замовлення', 'Спосіб замовлення', 'ПІБ', 'Спосіб оплати', 'Кількість', 'Артикул',
-                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Статус замовлення'])D:\Works\Online_store\prom_ua_report_status\data\November.xlsx
+                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Статус замовлення'])
 
         df.to_excel(f'data/{self.month}.xlsx', index=None, header=True)
 

@@ -14,17 +14,20 @@ class Status:
 
         req = sendRequest()
 
-        if re.match(r'^204|^59', f'{barcode}'):
-            response = req.request_to_np(barcode=barcode)
-            return response.get('data')[0].get('Status')
-        elif re.match(r'^050', f'{barcode}'):
-            response = req.request_to_ukr(barcode=barcode)
-            return response.get('eventName')
-        elif re.match(r'^50', f'{barcode}'):
-            response = req.request_to_ukr(barcode=f"0{barcode}")
-            return response.get('eventName')
-        else:
-            return ''
+        try:
+            if re.match(r'^204|^59', f'{barcode}'):
+                response = req.request_to_np(barcode=barcode)
+                return response.get('data')[0].get('Status')
+            elif re.match(r'^050', f'{barcode}'):
+                response = req.request_to_ukr(barcode=barcode)
+                return response.get('eventName')
+            elif re.match(r'^50', f'{barcode}'):
+                response = req.request_to_ukr(barcode=f"0{barcode}")
+                return response.get('eventName')
+            else:
+                return ''
+        except:
+            print("wrong", barcode)
 
     def readExcel(self, path_to_path, ttn_col='H', status_col='L'):
         wb = load_workbook(filename=path_to_path)
@@ -56,10 +59,10 @@ class Status:
 
 
 def main():
-    path_file = r"D:\Works\Online_store\prom_ua_report_status\data\November.xlsx"
+    path_file = r"D:\Works\Online_store\prom_ua_report_status\data\January.xlsx"
 
     st = Status()
-    st.readExcel(path_file, status_col='Q')
+    st.readExcel(path_file, status_col='L')
 
     # print(st.getStatus(barcode='0504270497177'))
 

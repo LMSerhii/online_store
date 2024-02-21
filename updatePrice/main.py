@@ -452,18 +452,20 @@ def manual(margin, original_margin, rate, rate_sell, curr):
 
 
 def main():
-    MARKETPLACE = 'ROZETKA'
+    MARKETPLACE = 'PROM'
     INITIAL_VALUE = ''
 
     match MARKETPLACE:
         case "MANUAL":
             manual(margin=200, original_margin=600, rate=17.4, rate_sell=20, curr=38.5)
         case "PROM":
-            prom(path=r"C:\Users\user\Downloads\grand_eltos.xlsx", prices=["GRAND_ELTOS"], valuta='USD',current_course=38.1)
+            prom(path=r"D:\Works\02_PROM\grand_eltos.xlsx", prices=["GRAND_ELTOS"], valuta='USD',
+                 current_course=39)
         case "EPICENTR":
-            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND_ELTOS'], valuta='USD', current_course=38.1)
+            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND_ELTOS'], valuta='USD', current_course=39)
         case "ROZETKA":
-            rozetka(base_dir=r"D:\Works\03_Rozetka\temp", prices=["GRAND_ELTOS"], valuta='USD', current_course=38.1)
+            rozetka(base_dir=r"D:\Works\03_Rozetka\GRAND", margin=200, original_margin=520, prices=["GRAND_ELTOS"],
+                    valuta='USD', current_course=39)
         case _:
             print("You do not have any access to the code")
 
