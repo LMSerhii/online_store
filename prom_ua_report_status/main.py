@@ -44,9 +44,6 @@ class ExportProm:
             barcode = response.get('data').get('intDocNumber')
             price = response.get('data').get('packageCost')
 
-            # print(barcode)
-            # print(price)
-
             return barcode, price
 
         elif doid == 10119216:
@@ -66,9 +63,6 @@ class ExportProm:
             barcode = response.get('data').get('declarationId')
             price = response.get('data').get('declaredCost')
 
-            # print(barcode)
-            # print(price)
-
             return barcode, price
 
         else:
@@ -85,7 +79,6 @@ class ExportProm:
             return None
 
     def __priceFinderFromSku(self, price, sku):
-
         pattern = r'[-рсолхэпик ]\s*(\d+)'
 
         match = re.search(pattern, sku)
@@ -94,16 +87,6 @@ class ExportProm:
             return price
         else:
             return price
-
-    def __pePattern(self, purchase_price, comments):
-        pattern = r'пе(\d+)'
-        match = re.search(pattern, comments)
-
-        if match:
-            purchase_price += match.group(1)
-            return purchase_price
-        else:
-            return purchase_price
 
     def get_data(self):
         """ """
@@ -114,7 +97,12 @@ class ExportProm:
             f'company_client_id=null&page=1&per_page=100&new_cabinet=true&search_term',
             cookies=cookies,
             headers=headers,
-        ).json()
+        )
+
+        if response.status_code != 200:
+            print('Server error ')
+
+        response = response.json()
 
         pagination = response.get('pagination').get('num_pages')
 
@@ -160,6 +148,43 @@ class ExportProm:
                 if price == '':
                     price = self.__priceFinderFromSku(price, comments)
 
+                pattern = r"Пром-оплата|олхрс|оплрс"
+
+                try:
+                    if re.search(pattern, payment_option_name):
+                        pc = price
+                    elif re.search(pattern, comments):
+                        pc = price
+                    else:
+                        pc = ''
+                except:
+                    print("pattern", pattern)
+                    print("id", id)
+
+
+                pattern_1 = r'денис-(\d+)'
+                match_1 = re.search(pattern_1, comments)
+
+                pattern_2 = r'взялиидениса(\d+)'
+                match_2 = re.search(pattern_2, comments)
+
+                if match_1:
+                    den = int(match_1.group(1))
+                elif match_2:
+                    den = -match_2.group(1)
+                else:
+                    den = ''
+
+                pattern = r"дропмард-(\d+)"
+                match = re.search(pattern, comments)
+
+                if match:
+                    mard = match.group(1)
+                    price = int(mard)
+                else:
+                    mard = ''
+
+
                 purchase_price = None
                 margin = None
 
@@ -191,11 +216,18 @@ class ExportProm:
                     sku = added_items[0].get('sku')
                     quantity = added_items[0].get('quantity')
 
-                    purchase_price = self.__pePattern(purchase_price, comments)
+                    pattern = r'пе(\d+)'
+                    match = re.search(pattern, comments)
+
+                    if match:
+                        purchase_price += match.group(1)
+                        pe = match.group(1)
+                    else:
+                        pe = ''
 
                     data_list.append(
                         [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
-                         price, purchase_price, margin, status])
+                         price, purchase_price, margin, pe, pc, den, mard, status])
 
                     # Остальные позиции проставляем с ценой и стоимостью доставки в ноль, что бы не дублировать
                     for item in added_items[1:]:
@@ -204,11 +236,15 @@ class ExportProm:
                         sku = ''
                         price = 0
                         purchase_price = 0
+                        pc = 0
+                        pe = ''
+                        den = 0
+                        mard = 0
 
                         data_list.append(
                             [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
                              price,
-                             purchase_price, margin, status])
+                             purchase_price, margin, pe, pc, den, mard, status])
 
                 else:
                     for item in added_items:
@@ -217,22 +253,31 @@ class ExportProm:
 
                         purchase_price = self.__valid_pp(sku, quantity)
 
-                        purchase_price = self.__pePattern(purchase_price, comments)
+                        pattern = r'пе(\d+)'
+                        match = re.search(pattern, comments)
+
+                        if match:
+                            # print(match.group(1))
+                            # purchase_price += match.group(1)
+                            pe = match.group(1)
+                        else:
+                            pe = ''
 
                         data_list.append(
                             [id, order_type, client_full_name, payment_option_name, quantity, sku, comments, barcode,
-                             price, purchase_price, margin, status])
+                             price, purchase_price, margin, pe, pc, den, mard, status])
 
         df = pd.DataFrame(data_list,
                           columns=['id замовлення', 'Спосіб замовлення', 'ПІБ', 'Спосіб оплати', 'Кількість', 'Артикул',
-                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Статус замовлення'])
+                                   'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Ми >> Пе',
+                                   'РС >> СЛ', 'Денис >> СЛ', 'Мард >> СЛ',  'Статус замовлення'])
 
         df.to_excel(f'data/{self.month}.xlsx', index=None, header=True)
 
 
 def main():
-    ex = ExportProm(custom_status_id=144381, month='December',
-                    current_course=38.5)
+    ex = ExportProm(custom_status_id=148387, month='March',
+                    current_course=39.8, status=True)
     ex.get_data()
 
 

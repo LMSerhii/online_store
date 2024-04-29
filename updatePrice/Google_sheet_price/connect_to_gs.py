@@ -72,7 +72,7 @@ class GPrice:
         if isinstance(price, str) and '$' in price:
             price = price.replace('$', '').replace(',', '.').strip()
 
-        if price is None:
+        if price is None or price == '-':
             price = 0
 
         return float(price)
@@ -171,7 +171,7 @@ class GPrice:
 def main():
     up = GPrice(
         sheet_id=os.getenv('GRAND_ELTOS'),
-        path_file=r"C:\Users\user\Downloads\Электроинструмент Grand-Eltos_д.xlsx",
+        path_file=r"C:\Users\user\Downloads\price.xlsx",
         vcc_ex='B',
         price_col_ex='H',
         av_col_ex='G'
