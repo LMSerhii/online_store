@@ -276,8 +276,8 @@ class ExportProm:
 
 
 def main():
-    ex = ExportProm(custom_status_id=148387, month='March',
-                    current_course=39.8, status=True)
+    ex = ExportProm(custom_status_id=149546, month='April',
+                    current_course=40, status=True)
     ex.get_data()
 
 

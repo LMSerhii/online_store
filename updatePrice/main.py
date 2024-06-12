@@ -38,8 +38,7 @@ class UpdatePrice:
 
                 pp = vendor_code.split('||')[-1]
 
-                new_price = self.royalty(
-                    (float(pp) * self.curr + self.or_margin), rate)
+                new_price = self.royalty((float(pp) * self.curr + self.or_margin), rate)
 
                 old_price = self.royalty(new_price, self.rate_sell)
 
@@ -148,6 +147,8 @@ class UpdatePrice:
                     price = sheet[f'E{i}']
                 elif self.valuta == 'UAH':
                     price = sheet[f'F{i}']
+                else:
+                    price = 0
 
                 if isinstance(price, str) and '$' in price:
                     price = price.replace('$', '').replace(',', '.').strip()
@@ -189,6 +190,8 @@ class UpdatePrice:
                     worksheet[f'{self.vendor_code_coll}{itr}'].value = f'{vendor_code}|000{price}'
 
             return True
+        else:
+            return False
 
     def updateProm(self, rate_column='AA', from_price=None):
         wb = load_workbook(filename=self.export_path)
@@ -209,7 +212,7 @@ class UpdatePrice:
                 result = self.__put_id_prom(
                     worksheet=ws, itr=i, sheet_id=from_price)
 
-                if result is None:
+                if not result:
                     print(f"{ws[f'A{i}'].value} was not found")
 
             new_price, old_price = self.__vendor_code(
@@ -452,20 +455,19 @@ def manual(margin, original_margin, rate, rate_sell, curr):
 
 
 def main():
-    MARKETPLACE = 'ROZETKA'
-    INITIAL_VALUE = ''
+    MARKETPLACE = 'PROM'
 
     match MARKETPLACE:
         case "MANUAL":
             manual(margin=200, original_margin=600, rate=17.4, rate_sell=20, curr=38.5)
         case "PROM":
             prom(path=r"D:\Works\02_PROM\grand_eltos.xlsx", prices=["GRAND_ELTOS"], valuta='USD',
-                 current_course=40)
+                 current_course=42)
         case "EPICENTR":
-            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND_ELTOS'], valuta='USD', current_course=40)
+            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND_ELTOS'], valuta='USD', current_course=42)
         case "ROZETKA":
             rozetka(base_dir=r"D:\Works\03_Rozetka\GRAND", margin=200, original_margin=520, prices=["GRAND_ELTOS"],
-                    valuta='USD', current_course=40)
+                    valuta='USD', current_course=42)
         case _:
             print("You do not have any access to the code")
 

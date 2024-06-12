@@ -66,7 +66,6 @@ class sendRequest:
 
         return self.__request_repeat(url=url, headers=headers).json()
 
-
 def main():
     POST_NAME = 'UKR'
 
