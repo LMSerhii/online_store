@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 
 from openpyxl import load_workbook
 
+from paths import epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech
+
 load_dotenv()
 
 
@@ -136,11 +138,10 @@ class UpdatePrice:
 
         for i in range(1, sheet.rowCount + 1):
             vendor_code = sheet[f'B{i}']
-
             if vendor_code == '':
                 continue
 
-            if re.search(fr"{vendor_code}\|\w+|{vendor_code}\|\|\w+", vc_export):
+            if re.search(fr"{vendor_code}\|\w+|{vendor_code}\|\|\w+|^{vendor_code}$", vc_export):
                 print(f'{vendor_code} == {vc_export}')
 
                 if self.valuta == 'USD':
@@ -375,6 +376,7 @@ def prom(path, prices, margin=70, original_margin=300, current_course=39, rate_s
 
 def epicentr(base_dir, prices, margin=100, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
              vendor_code_column='D'):
+
     BASE_DIR = base_dir
     PRICE_LISTS = prices
 
@@ -455,19 +457,23 @@ def manual(margin, original_margin, rate, rate_sell, curr):
 
 
 def main():
-    MARKETPLACE = 'PROM'
+    print(epic_press)
+
+    MARKETPLACE = 'EPICENTR'
 
     match MARKETPLACE:
         case "MANUAL":
             manual(margin=200, original_margin=600, rate=17.4, rate_sell=20, curr=38.5)
         case "PROM":
-            prom(path=r"D:\Works\02_PROM\grand_eltos.xlsx", prices=["GRAND_ELTOS"], valuta='USD',
-                 current_course=42)
+            prom(path=r"D:\Works\02_PROM\GAZ.xlsx", prices=["GAZ"], valuta='UAH',
+                 current_course=41)
         case "EPICENTR":
-            epicentr(base_dir=r"D:\Works\01_EPICENTR\tools", prices=['GRAND_ELTOS'], valuta='USD', current_course=42)
+            epicentr(base_dir=epic_house_tech, prices=['GAZ'],  # 'PRESS', 'KORM', 'GAZ', 'INCUBATOR'
+                     valuta='UAH', current_course=41)
         case "ROZETKA":
-            rozetka(base_dir=r"D:\Works\03_Rozetka\GRAND", margin=200, original_margin=520, prices=["GRAND_ELTOS"],
-                    valuta='USD', current_course=42)
+            rozetka(base_dir=epic_press, margin=150, original_margin=370,
+                    prices=["PRESS"],
+                    valuta='UAH', current_course=41)
         case _:
             print("You do not have any access to the code")
 
