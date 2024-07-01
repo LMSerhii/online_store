@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 
 from openpyxl import load_workbook
 
-from paths import epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech
+from paths import epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech, roz_press, roz_gaz, roz_incubator, \
+    roz_grand, prom_press, prom_korm, prom_incubator, prom_gaz, prom_grand, prom_kitchen, roz_sushka, prom_mangal, \
+    prom_mangalKomplekt, prom_mangalChehol
 
 load_dotenv()
 
@@ -376,7 +378,6 @@ def prom(path, prices, margin=70, original_margin=300, current_course=39, rate_s
 
 def epicentr(base_dir, prices, margin=100, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
              vendor_code_column='D'):
-
     BASE_DIR = base_dir
     PRICE_LISTS = prices
 
@@ -457,23 +458,29 @@ def manual(margin, original_margin, rate, rate_sell, curr):
 
 
 def main():
-    print(epic_press)
+    # PRESS, KORM, GAZ, INCUBATOR, KITCHEN,
 
-    MARKETPLACE = 'EPICENTR'
+    MARKETPLACE = 'PROM'
 
     match MARKETPLACE:
         case "MANUAL":
-            manual(margin=200, original_margin=600, rate=17.4, rate_sell=20, curr=38.5)
+            manual(margin=150, original_margin=450, rate=15.15, rate_sell=20, curr=41)
+
         case "PROM":
-            prom(path=r"D:\Works\02_PROM\GAZ.xlsx", prices=["GAZ"], valuta='UAH',
-                 current_course=41)
+            prom(path=prom_mangal, prices=["MANGAL"], valuta='UAH',
+                 current_course=41, margin=70, original_margin=250, rate_sell=35)
+            # prom_press, prom_korm, prom_incubator, prom_gaz, prom_grand
+
         case "EPICENTR":
-            epicentr(base_dir=epic_house_tech, prices=['GAZ'],  # 'PRESS', 'KORM', 'GAZ', 'INCUBATOR'
-                     valuta='UAH', current_course=41)
+            epicentr(base_dir=epic_house_tech, prices=['KITCHEN'], valuta='UAH', current_course=41, margin=150)
+            # epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech
+
         case "ROZETKA":
-            rozetka(base_dir=epic_press, margin=150, original_margin=370,
-                    prices=["PRESS"],
+            rozetka(base_dir=roz_sushka, margin=200, original_margin=500,
+                    prices=["KITCHEN"],
                     valuta='UAH', current_course=41)
+            # roz_press, roz_gaz, roz_incubator,roz_grand
+
         case _:
             print("You do not have any access to the code")
 
