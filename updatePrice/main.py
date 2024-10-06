@@ -1,19 +1,15 @@
-import os
+import datetime
 import json
 import math
+import os
 import re
 import time
-import datetime
 
 import ezsheets
-
 from dotenv import load_dotenv
-
 from openpyxl import load_workbook
 
-from paths import epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech, roz_press, roz_gaz, roz_incubator, \
-    roz_grand, prom_press, prom_korm, prom_incubator, prom_gaz, prom_grand, prom_kitchen, roz_sushka, prom_mangal, \
-    prom_mangalKomplekt, prom_mangalChehol
+from paths import epic_press, roz_press, prom_press, prom_grand, roz_grand, epic_grand
 
 load_dotenv()
 
@@ -110,29 +106,39 @@ class UpdatePrice:
 
             return discount, date_start, date_end
 
-    def __get_rate(self, worksheet, itr, rate_column):
-        export_rate_id = worksheet[f'{rate_column}{itr}'].value
+    @staticmethod
+    def __get_rate(export_rate_id):
+        try:
+            with open('prom_rate.json', 'r', encoding='utf-8') as f:
+                file = json.load(f)
 
-        with open('prom_rate.json', 'r', encoding='utf-8') as f:
-            file = json.load(f)
+            for item in file:
+                if 'cat_id' in item and 'rate' in item:
+                    prom_rate_id = int(item.get('cat_id'))
 
-        for item in file:
-            prom_rate_id = int(item.get('cat_id'))
+                    if export_rate_id == prom_rate_id:
+                        rate = item.get('rate')
+                        if rate.endswith('%'):
+                            return float(rate[:-1])
+            return 0
 
-            if export_rate_id == prom_rate_id:
-                return float(item.get('rate')[:-1])
+        except Exception as ex:
+            print('=' * 50)
+            print(ex)
+            print('-' * 50)
+            print('export_rate_id', export_rate_id)
+            print('=' * 50)
 
-    def __vendor_validation(self, worksheet, itr):
-
-        vc_export = worksheet[f'{self.vendor_code_coll}{itr}'].value
+    @staticmethod
+    def __vendor_validation(vc_export):
 
         if vc_export is None:
-            return True
+            return False
 
         if re.match(r'^Код_товара', vc_export):
-            return True
+            return False
 
-        return False
+        return True
 
     def __get_price(self, sheet_id, vc_export):
         ss = ezsheets.Spreadsheet(sheet_id)
@@ -158,8 +164,6 @@ class UpdatePrice:
 
                 availability = sheet[f'H{i}']
 
-                # print(f'Vendor_code: {vendor_code}, Price: {price}, Availability: {availability}')
-
                 return float(price), availability, vendor_code
 
     def __put_id_prom(self, worksheet, itr, sheet_id):
@@ -167,7 +171,6 @@ class UpdatePrice:
         vencod_export = worksheet[f'{self.vendor_code_coll}{itr}'].value
 
         result = self.__get_price(sheet_id=sheet_id, vc_export=vencod_export)
-        # print(result)
 
         if result is not None:
 
@@ -202,20 +205,17 @@ class UpdatePrice:
 
         for i in range(2, ws.max_row + 1):
 
-            if self.__vendor_validation(worksheet=ws, itr=i):
+            vc_export = ws[f'{self.vendor_code_coll}{i}'].value
+
+            if not self.__vendor_validation(vc_export):
                 continue
 
-            rate = self.__get_rate(worksheet=ws, itr=i,
-                                   rate_column=rate_column)
+            export_rate_id = ws[f'{rate_column}{i}'].value
 
-            if rate is None:
-                rate = 0
+            rate = self.__get_rate(export_rate_id)
 
             if from_price is not None:
-                result = self.__put_id_prom(
-                    worksheet=ws, itr=i, sheet_id=from_price)
-
-                if not result:
+                if not self.__put_id_prom(ws, i, from_price):
                     print(f"{ws[f'A{i}'].value} was not found")
 
             new_price, old_price = self.__vendor_code(
@@ -230,7 +230,6 @@ class UpdatePrice:
             ws[f'AI{i}'].value = date_start
             ws[f'AJ{i}'].value = date_end
 
-            # print(f'[INFO] Row {i} completed')
             print('=' * 70)
 
         wb.save(self.export_path)
@@ -360,7 +359,7 @@ class UpdatePrice:
 
 def prom(path, prices, margin=70, original_margin=300, current_course=39, rate_sell=20, valuta='USD',
          vendor_code_column='A'):
-    PRICE_LISTS = prices
+    price_lists = prices
 
     export = UpdatePrice(
         export_path=path,
@@ -372,7 +371,7 @@ def prom(path, prices, margin=70, original_margin=300, current_course=39, rate_s
         valuta=valuta
     )
 
-    for price in PRICE_LISTS:
+    for price in price_lists:
         print(export.updateProm(from_price=os.getenv(price)))
 
 
@@ -458,7 +457,7 @@ def manual(margin, original_margin, rate, rate_sell, curr):
 
 
 def main():
-    # PRESS, KORM, GAZ, INCUBATOR, KITCHEN,
+    # PRESS, KORM, GAZ, INCUBATOR, KITCHEN, GRAND_ELTOS
 
     MARKETPLACE = 'PROM'
 
@@ -467,18 +466,19 @@ def main():
             manual(margin=150, original_margin=450, rate=15.15, rate_sell=20, curr=41)
 
         case "PROM":
-            prom(path=prom_mangal, prices=["MANGAL"], valuta='UAH',
-                 current_course=41, margin=70, original_margin=250, rate_sell=35)
+            prom(path=prom_grand, prices=["GRAND_ELTOS"], valuta='USD',
+                 current_course=41.7, margin=100, original_margin=430, rate_sell=45)
             # prom_press, prom_korm, prom_incubator, prom_gaz, prom_grand
 
         case "EPICENTR":
-            epicentr(base_dir=epic_house_tech, prices=['KITCHEN'], valuta='UAH', current_course=41, margin=150)
-            # epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech
+            epicentr(base_dir=epic_grand, prices=['GRAND_ELTOS'], valuta='USD', current_course=41.7, margin=250,
+                     original_margin=500)
+            # epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech, epic_grand
 
         case "ROZETKA":
-            rozetka(base_dir=roz_sushka, margin=200, original_margin=500,
-                    prices=["KITCHEN"],
-                    valuta='UAH', current_course=41)
+            rozetka(base_dir=roz_grand, margin=250, original_margin=500,
+                    prices=["GRAND_ELTOS"],
+                    valuta='USD', current_course=41.7)
             # roz_press, roz_gaz, roz_incubator,roz_grand
 
         case _:

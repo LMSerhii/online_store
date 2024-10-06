@@ -3,6 +3,7 @@ epic_incubator: str = r"D:\Works\01_EPICENTR\household\інкубатори"
 epic_korm: str = r"D:\Works\01_EPICENTR\household\кормоподрібнювачі"
 epic_gaz: str = r"D:\Works\01_EPICENTR\household\газові комплекти"
 epic_house_tech: str = r"D:\Works\01_EPICENTR\household\техніка для кухні"
+epic_grand: str = r"D:\Works\01_EPICENTR\tools"
 
 roz_press: str = r"D:\Works\03_Rozetka\Household\преса"
 roz_gaz: str = r"D:\Works\03_Rozetka\Household\туристичні плити"
