@@ -1,14 +1,15 @@
-import json
 import logging
 import os
 import re
 
 import colorlog
 import ezsheets
-from dotenv import load_dotenv
+import dotenv
 from openpyxl import load_workbook
+import json
+from dotenv import dotenv_values
 
-load_dotenv()
+dotenv.load_dotenv()
 
 handler = colorlog.StreamHandler()
 handler.setFormatter(colorlog.ColoredFormatter(
@@ -40,6 +41,7 @@ class GPrice:
                  available_column_google_sheets='I',
                  item_number_export_file='B',
                  price_column_export_file='H',
+                 price_rrc_column_export_file='I',
                  available_column_export_file='G',
                  amount_column_export_file='F',
 
@@ -54,6 +56,7 @@ class GPrice:
         self.amount_column_google_sheets = amount_column_google_sheets
         self.item_number_export_file = item_number_export_file
         self.price_column_export_file = price_column_export_file
+        self.price_rrc_column_export_file = price_rrc_column_export_file
         self.available_column_export_file = available_column_export_file
         self.amount_column_export_file = amount_column_export_file
         self.items_sheet_list = []
@@ -89,7 +92,7 @@ class GPrice:
         try:
             return float(price)
         except Exception as ex:
-            logger.error(f"Not valid price {price}, ERROR: {ex}")
+            logger.error(f"Not valid rrc_price {price}, ERROR: {ex}")
 
     @staticmethod
     def _valid_availability_export_file(cell):
@@ -132,7 +135,10 @@ class GPrice:
             if self._not_valid_item_number(item_number):
                 continue
 
-            price_excel = self._valid_price(excel_sheet[f"{self.price_column_export_file}{i}"].value)
+            price_excel = self._valid_price(
+                excel_sheet[f"{self.price_column_export_file}{i}"].value)
+            price_rrc_excel = self._valid_price(
+                excel_sheet[f"{self.price_rrc_column_export_file}{i}"].value)
 
             if price_excel is None:
                 continue
@@ -144,6 +150,7 @@ class GPrice:
 
             excel_items[item_number] = {
                 'price': price_excel,
+                'price_rrc': price_rrc_excel if price_rrc_excel else '0',
                 'amount': amount,
                 'availability': availability_excel
             }
@@ -159,6 +166,24 @@ class GPrice:
             return
 
         sheet = self.connect_to_google()
+        missing_items = {}
+
+        google_items = set()
+        for i in range(1, sheet.rowCount + 1):
+            item_number = sheet[f'{self.item_number_google_sheets}{i}']
+            if not self._not_valid_item_number(item_number):
+                google_items.add(item_number)
+
+        for item_number, data in excel_items.items():
+            if item_number not in google_items:
+                missing_items[item_number] = data
+                logger.info(
+                    f"Item {item_number} exists in Excel but not in Google Sheets")
+
+        if missing_items:
+            with open('missing_items.json', 'w', encoding='utf-8') as f:
+                json.dump(missing_items, f, ensure_ascii=False, indent=4)
+            logger.info(f"Missing items were saved to missing_items.json")
 
         for i in range(1, sheet.rowCount + 1):
             item_number = sheet[f'{self.item_number_google_sheets}{i}']
@@ -174,12 +199,14 @@ class GPrice:
 
                 sheet[f'{self.amount_column_google_sheets}{i}'] = data['amount']
                 sheet[f'{self.price_column_google_sheets}{i}'] = data['price']
+                sheet[f'{self.recommended_retail_price_column_google_sheets}{i}'] = data['price_rrc']
                 sheet[f'{self.available_column_google_sheets}{i}'] = data['availability']
                 logger.info(f"Product data has been updated {item_number}.")
 
             else:
                 sheet[f'{self.available_column_google_sheets}{i}'] = "FALSE"
-                logger.info(f"The item {item_number} was not found in Excel. Available set 'False'.")
+                logger.info(
+                    f"The item {item_number} was not found in Excel. Available set 'False'.")
 
     def _get_data_from_excel_file(self):
         logger.info("Getting data from an Excel file...")
@@ -194,7 +221,8 @@ class GPrice:
             if self._not_valid_item_number(item_number):
                 continue
 
-            rrp_price_excel = self._valid_price(excel_sheet[f"{self.price_column_export_file}{i}"].value)
+            rrp_price_excel = self._valid_price(
+                excel_sheet[f"{self.price_rrc_column_export_file}{i}"].value)
 
             if rrp_price_excel is None:
                 continue
@@ -232,7 +260,8 @@ class GPrice:
                 logger.info(f"Product data has been updated {item_number}.")
             else:
                 sheet[f'{self.recommended_retail_price_column_google_sheets}{i}'] = 0
-                logger.info(f"The item {item_number} was not found in Excel. The price is set to 0.")
+                logger.info(
+                    f"The item {item_number} was not found in Excel. The price is set to 0.")
 
     def updatePrice(self):
 
@@ -240,7 +269,7 @@ class GPrice:
 
         self._set_data_to_google_sheets_for_update_price(excel_items)
 
-    def updateRRP(self):
+    def updateOnlyRRP(self):
 
         excel_items = self._get_data_from_excel_file()
 
@@ -249,20 +278,14 @@ class GPrice:
 
 def main():
 
-    google_sheets_price = 'GRAND_ELTOS'
-    excel_price = r"C:\Users\user\Downloads\Прайс Grand 18 вересня 2024_2 (1).xlsx"
-    excel_price_RRP = r"C:\Users\user\Downloads\Telegram Desktop\Прайс_Grand_з_рекомендованою_мінімальною_роздрібною_ціною_на_вересень.xlsx"
+    print(dotenv_values()['GRAND_ELTOS'])
 
     up = GPrice(
-        sheet_id=os.getenv(google_sheets_price),
-        path_file=excel_price,
+        sheet_id=dotenv_values()['GRAND_ELTOS'],
+        path_file=dotenv_values()['PATH_FILE_EXCEL_PRICE_RRP'],
     )
 
-    # excel_price
     up.updatePrice()
-
-    # # excel_price_RRP
-    # up.updateRRP()
 
 
 if __name__ == '__main__':
