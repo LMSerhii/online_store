@@ -1,18 +1,44 @@
+import logging
 import re
-import os
 
+import colorlog
 import pandas as pd
 import requests
-
+from dotenv import load_dotenv
 from tqdm import tqdm
 
 from get_status import Status
 from headers_cookies import headers, cookies
+from config import CONFIG
+
+
+load_dotenv()
+
+
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    "%(log_color)s%(levelname)s:%(name)s:%(message)s",
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bold_red',
+    }
+))
+
+logger = colorlog.getLogger('Prom.ua report status')
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
+logging.getLogger().handlers.clear()
+
+BASE_URL = CONFIG['BASE_URL']
 
 
 class ExportProm:
 
-    def __init__(self, custom_status_id, month='current_month', current_course=37.5, status=False):
+    def __init__(self, custom_status_id, month='current_month', current_course=41.85, status=False):
         self.custom_status_id = custom_status_id
         self.month = month
         self.current_course = current_course
@@ -88,34 +114,48 @@ class ExportProm:
         else:
             return price
 
-    def get_data(self):
-        """ """
-        data_list = []
+    def _get_pagination(self):
+
+        url = f'{BASE_URL}?custom_status_id={self.custom_status_id}&company_client_id=null&page=1&per_page=100&new_cabinet=true&search_term'
 
         response = requests.get(
-            f'https://my.prom.ua/remote/order_api/orders?custom_status_id={self.custom_status_id}&'
-            f'company_client_id=null&page=1&per_page=100&new_cabinet=true&search_term',
+            url=url,
             cookies=cookies,
             headers=headers,
         )
 
         if response.status_code != 200:
-            print('Server error ')
+            logger.error('Server error ')
 
         response = response.json()
 
-        pagination = response.get('pagination').get('num_pages')
+        num_pages = response.get('pagination').get('num_pages')
+
+        if num_pages == 0:
+            logger.error('No orders found')
+            return None
+
+        return num_pages
+
+    def _get_orders(self, page):
+        url = f'{BASE_URL}?custom_status_id={self.custom_status_id}&company_client_id=null&page={page}&per_page=100&new_cabinet=true&search_term'
+
+        response = requests.get(url=url,
+                                cookies=cookies,
+                                headers=headers,
+                                )
+
+        return response.json()
+
+    def get_data(self):
+        """ """
+        data_list = []
+
+        pagination = self._get_pagination()
 
         for page in tqdm(range(1, pagination + 1)):
 
-            response = requests.get(
-                f'https://my.prom.ua/remote/order_api/orders?custom_status_id={self.custom_status_id}&company_client_id=null&page={page}&'
-                f'per_page=100&new_cabinet=true&search_term',
-                cookies=cookies,
-                headers=headers,
-            ).json()
-
-            orders = response.get('orders')
+            orders = self._get_orders(page)
             for order in orders:
                 id = order.get('id')
 
@@ -161,7 +201,6 @@ class ExportProm:
                     print("pattern", pattern)
                     print("id", id)
 
-
                 pattern_1 = r'денис-(\d+)'
                 match_1 = re.search(pattern_1, comments)
 
@@ -183,7 +222,6 @@ class ExportProm:
                     price = int(mard)
                 else:
                     mard = ''
-
 
                 purchase_price = None
                 margin = None
@@ -270,15 +308,25 @@ class ExportProm:
         df = pd.DataFrame(data_list,
                           columns=['id замовлення', 'Спосіб замовлення', 'ПІБ', 'Спосіб оплати', 'Кількість', 'Артикул',
                                    'Коментарі', 'ТТН', 'Ціна продажу', 'Ціна закупу', 'Прибуток', 'Ми >> Пе',
-                                   'РС >> СЛ', 'Денис >> СЛ', 'Мард >> СЛ',  'Статус замовлення'])
+                                   'РС >> СЛ', 'Денис >> СЛ', 'Мард >> СЛ', 'Статус замовлення'])
 
         df.to_excel(f'data/{self.month}.xlsx', index=None, header=True)
 
 
 def main():
-    ex = ExportProm(custom_status_id=149546, month='April',
-                    current_course=40, status=True)
-    ex.get_data()
+
+    options = {
+        'custom_status_id': 150740,
+        'month': 'May',
+        'current_course': 41.85,
+        'status': True,
+    }
+
+    ex = ExportProm(**options)
+
+    # ex.get_data()
+
+    ex._get_pagination()
 
 
 if __name__ == '__main__':
