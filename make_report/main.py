@@ -3,6 +3,7 @@ from excel import ExcelProcessor
 from export import ExportProm
 from logger import logger
 from status import StatusService
+import pprint
 
 
 def main():
@@ -13,19 +14,18 @@ def main():
         logger.info("Configuration loaded successfully")
 
         # Ініціалізація сервісів
-        status_service = StatusService(config)
+        status_service = StatusService(config, export_config)
         logger.info("Status service initialized successfully")
-
-        excel_processor = ExcelProcessor(status_service)
-        logger.info("Excel processor initialized successfully")
 
         # Виконання експорту
         exporter = ExportProm(export_config, status_service)
+        logger.info("Export prom initialized successfully")
+
         data = exporter.get_data()
 
         if data:
             # Експорт даних в Excel
-            exporter.export_to_excel(data, "export_results.xlsx")
+            exporter.export_to_excel(data, f"data/{export_config.month}.xlsx")
             logger.info("Export completed successfully")
         else:
             logger.error("No data to export")
