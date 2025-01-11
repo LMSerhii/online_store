@@ -1,0 +1,20 @@
+{
+    "GRAPC20/8-0": {
+        "price": 28.0,
+        "price_rrc": 1444.8,
+        "amount": "12 шт.",
+        "availability": "TRUE"
+    },
+    "GRNAI3G": {
+        "price": 133.0,
+        "price_rrc": 6862.8,
+        "amount": "2 шт.",
+        "availability": "TRUE"
+    },
+    "GRNAI3P": {
+        "price": 138.0,
+        "price_rrc": 7120.8,
+        "amount": "2 шт.",
+        "availability": "TRUE"
+    }
+}

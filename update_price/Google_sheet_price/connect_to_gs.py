@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 
 import colorlog
@@ -278,7 +277,7 @@ class GPrice:
 
 def main():
 
-    print(dotenv_values()['GRAND_ELTOS'])
+    # print(dotenv_values()['GRAND_ELTOS'])
 
     up = GPrice(
         sheet_id=dotenv_values()['GRAND_ELTOS'],
@@ -286,6 +285,7 @@ def main():
     )
 
     up.updatePrice()
+    logger.debug('Completed')
 
 
 if __name__ == '__main__':
