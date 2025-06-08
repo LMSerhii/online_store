@@ -67,6 +67,8 @@ class PromClient(BaseAPIClient):
     def get_pagination(self) -> int:
         """Отримати кількість сторінок для пагінації"""
 
+        print(self.config.prom_base_url)
+
         try:
             params = {
                 "custom_status_id": self.config.custom_status_id,

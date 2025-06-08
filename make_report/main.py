@@ -3,6 +3,7 @@ from excel import ExcelProcessor
 from export import ExportProm
 from logger import logger
 from status import StatusService
+import os
 import pprint
 
 
@@ -24,6 +25,8 @@ def main():
         data = exporter.get_data()
 
         if data:
+            os.makedirs("data", exist_ok=True)
+
             # Експорт даних в Excel
             exporter.export_to_excel(data, f"data/{export_config.month}.xlsx")
             logger.info("Export completed successfully")

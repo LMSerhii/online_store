@@ -333,9 +333,9 @@ class UpdatePrice:
                 price, availability, vendor_code = result
 
                 if availability == "TRUE":
-                    ws[f"P{i}"].value = "Есть в наличии"
+                    ws[f"Q{i}"].value = "В наявності"
                 elif availability == "FALSE":
-                    ws[f"P{i}"].value = "Нет в наличии"
+                    ws[f"Q{i}"].value = "Не в наявності"
 
                 if re.search(r"\|\|", vencod_export):
 
@@ -499,16 +499,23 @@ def manual(margin, original_margin, rate, rate_sell, currency_rate):
         or_new_price = export.royalty(price + original_margin, rate)
         or_old_price = export.royalty(or_new_price, rate_sell)
 
+        logger.warning('Manual price')
+        print('new_price', new_price)
+        print('old_price', old_price)
+        print('or_new_price', or_new_price)
+        print('or_old_price', or_old_price)
+
+
 
 def main(marketplace):
     match marketplace:
         case "MANUAL":
             manual(
-                margin=150,
-                original_margin=450,
-                rate=15.15,
-                rate_sell=20,
-                currency_rate=41,
+                margin=100,
+                original_margin=430,
+                rate=15,
+                rate_sell=18,
+                currency_rate=42,
             )
 
         case "PROM":
@@ -516,10 +523,10 @@ def main(marketplace):
                 export_file_path=prom_grand,
                 prices=["GRAND_ELTOS"],
                 valuta="USD",
-                current_course=43.20,
+                current_course=41.8,
                 margin=100,
                 original_margin=430,
-                rate_sell=45,
+                rate_sell=22
             )
             # prom_press, prom_korm, prom_incubator, prom_gaz, prom_grand
 
@@ -528,21 +535,22 @@ def main(marketplace):
                 base_dir=epic_grand,
                 prices=["GRAND_ELTOS"],
                 valuta="USD",
-                current_course=43.20,
+                current_course=41.8,
                 margin=150,
                 original_margin=480,
+                rate_sell=22
             )
             # epic_press, epic_incubator, epic_korm, epic_gaz, epic_house_tech, epic_grand
 
         case "ROZETKA":
             rozetka(
                 base_dir=roz_grand,
-                margin=150,
-                original_margin=480,
+                margin=200,
+                original_margin=530,
                 prices=["GRAND_ELTOS"],
                 valuta="USD",
-                current_course=43.20,
-                rate_sell=10,
+                current_course=41.8,
+                rate_sell=22,
             )
             # roz_press, roz_gaz, roz_incubator,roz_grand
 
@@ -553,7 +561,9 @@ def main(marketplace):
 if __name__ == "__main__":
     # PRESS, KORM, GAZ, INCUBATOR, KITCHEN, GRAND_ELTOS
 
-    MARKETPLACES = ["ROZETKA", "PROM", "EPICENTR"]
+    MARKETPLACES = [ "PROM", "ROZETKA"]
+    # MARKETPLACES = ["MANUAL"]
+
 
     for MARKETPLACE in MARKETPLACES:
         logger.info("=" * 50)

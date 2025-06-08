@@ -14,9 +14,9 @@ headers: Dict[str, str] = {
 }
 
 cookies: Dict[str, str] = {
-    'auth': '7d47231bc274b63fcb8a58aa0e5fa42ef9a4eb51',
-    'csrf_token': 'bf8bfdaa1e744bdbbe0e378a176e4e51',
-    'evoauth': 'w33bd016ca7544eb893812febd46e64a8',
+    'auth': '67a999baada1a92ed4be91d15582759533d0b4ff',
+    'csrf_token': '8197d4ec000346948977d34fb6af904d',
+    'evoauth': 'wbca16ef2b10b48cb86d2c225fd17404c',
 
     'cabinet': 'company',
     'lid': '3054143', 
