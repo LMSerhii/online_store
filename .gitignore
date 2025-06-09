@@ -171,3 +171,5 @@ updatePrice/get_get.py
 updatePrice/token-drive.pickle
 updatePrice/token-drive.pickle
 updatePrice/token-sheets.pickle
+
+.vscode/settings.json
