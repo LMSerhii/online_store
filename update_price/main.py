@@ -429,14 +429,16 @@ class UpdatePrice:
             addon = self._resolve_margin(margin_spec, base)
             base_with_margin = base + addon
 
-            selected_rate = self.resolve_rate(rate, price=base_with_margin) * 1.08
+            selected_rate = self.resolve_rate(
+                rate, price=base_with_margin) * 1.08
             new_price = self.royalty(base_with_margin, selected_rate)
             old_price = self.royalty(new_price, self.rate_sell)
 
             if new_price == 0 and old_price == 0:
                 ws[f"Q{i}"].value = "Не в наявності"
                 logger.info(f"Something wrong with price")
-                logger.info(f"Rate: {selected_rate} -- Price: {price} -- Finish price: {new_price}")
+                logger.info(
+                    f"Rate: {selected_rate} -- Price: {price} -- Finish price: {new_price}")
 
             divider = "||" if "||" in vencod_export else "|"
 
@@ -455,6 +457,9 @@ class UpdatePrice:
             ws[f"I{i}"].value = new_price
             ws[f"J{i}"].value = old_price
             ws[f"E{i}"].value = str(new_vendor_code)
+            ws[f"L{i}"].value = (
+                datetime.datetime.now() + datetime.timedelta(days=14)
+            ).strftime("%Y-%m-%d")
 
             logger.info(f"Row {i - 1} / {ws.max_row - 1} completed")
 
@@ -626,8 +631,8 @@ def main(marketplace):
                 prices=["GRAND_ELTOS"],  # GRAND_ELTOS | SPRAYER
                 valuta="USD",  # UAH | USD
                 current_course=45,
-                margin='20%',  # 200 | 20%
-                original_margin="50%",  # 530 | 50%
+                margin='10%',  # 200 | 20%
+                original_margin="40%",  # 530 | 50%
                 rate_sell=25
             )
 
@@ -649,8 +654,8 @@ def main(marketplace):
                 prices=["GRAND_ELTOS"],
                 valuta="USD",
                 current_course=45,
-                margin='20%',
-                original_margin='50%',
+                margin='10%',
+                original_margin='40%',
                 rate_sell=25
             )
             # roz_press, roz_gaz, roz_incubator,roz_grand, rozetka_one_file, rozetka_secators, rozetka_saw, rozetka_welding
