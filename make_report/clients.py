@@ -158,3 +158,29 @@ class PromClient(BaseAPIClient):
         except Exception as e:
             logger.error(f"Failed to get delivery data for order {id}: {e}")
             return None, None
+
+    def set_status(
+            self,
+            order_ids: list[int],
+            new_status_id: int,
+            new_status_type: str = "default",
+            cancellation_reason=None,
+            cancellation_reason_text: str = ""
+    ):
+        json_data = {
+            "order_ids": order_ids,
+            "cancellation_reason": cancellation_reason,
+            "cancellation_reason_text": cancellation_reason_text,
+            "new_status_id": new_status_id,
+            "new_status_type": new_status_type,
+        }
+
+        response = self.post(
+            url=f"{self.config.prom_base_url}/set_status",
+            headers=self.config.headers,
+            cookies=self.config.cookies,
+            json=json_data,
+        )
+
+        return response
+

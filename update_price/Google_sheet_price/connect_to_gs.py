@@ -1,5 +1,7 @@
 import logging
 import re
+import os
+from pprint import pprint
 
 import colorlog
 import ezsheets
@@ -7,6 +9,7 @@ import dotenv
 from openpyxl import load_workbook
 import json
 from dotenv import dotenv_values
+import unicodedata
 
 dotenv.load_dotenv()
 
@@ -31,6 +34,7 @@ class GPrice:
 
     def __init__(self,
                  sheet_id,
+                 from_google,
                  path_file=None,
                  item_number_google_sheets='B',
                  title_google_sheets='C',
@@ -46,6 +50,7 @@ class GPrice:
 
                  ):
         self.sheet_id = sheet_id
+        self.from_google = from_google
         self.path_file = path_file
         self.item_number_google_sheets = item_number_google_sheets
         self.title_google_sheets = title_google_sheets
@@ -60,6 +65,14 @@ class GPrice:
         self.amount_column_export_file = amount_column_export_file
         self.items_sheet_list = []
         self.items_excel_list = []
+
+    @staticmethod
+    def _col_letter_to_index(col: str) -> int:
+        col = col.upper()
+        result = 0
+        for char in col:
+            result = result * 26 + (ord(char) - ord('A') + 1)
+        return result - 1
 
     @staticmethod
     def _not_valid_item_number(vc):
@@ -82,12 +95,13 @@ class GPrice:
     @staticmethod
     def _valid_price(price):
 
-        symbols = ['$', ',']
-
         if isinstance(price, str):
-            for symbol in symbols:
-                price = price.replace(symbol, '')
-
+            price = price.replace(',', '.')
+            cleaned = re.sub(r'[^\d.\-]', '', price)
+            try:
+                return float(cleaned)
+            except ValueError:
+                return logger.error('Invalid price')
         try:
             return float(price)
         except Exception as ex:
@@ -101,10 +115,10 @@ class GPrice:
         else:
             return 'FALSE'
 
-    def connect_to_google(self):
+    def connect_to_google(self, google_sheet_id):
         try:
             logger.info("Connecting to google sheets...")
-            ss = ezsheets.Spreadsheet(self.sheet_id)
+            ss = ezsheets.Spreadsheet(google_sheet_id)
             sheet = ss.sheets[0]
 
             return sheet
@@ -136,6 +150,7 @@ class GPrice:
 
             price_excel = self._valid_price(
                 excel_sheet[f"{self.price_column_export_file}{i}"].value)
+
             price_rrc_excel = self._valid_price(
                 excel_sheet[f"{self.price_rrc_column_export_file}{i}"].value)
 
@@ -158,54 +173,106 @@ class GPrice:
             logger.warning("The Excel file does not contain valid data.")
         return excel_items
 
+    def _get_data_from_google_file_for_update_price(self):
+        google_sheet = self.connect_to_google(self.from_google)
+        all_rows = google_sheet.getRows()
+
+        item_col = self._col_letter_to_index(self.item_number_export_file)
+        price_col = self._col_letter_to_index(self.price_column_export_file)
+        price_rrc_col = self._col_letter_to_index(self.price_rrc_column_export_file)
+        amount_col = self._col_letter_to_index(self.amount_column_export_file)
+        avail_col = self._col_letter_to_index(self.available_column_export_file)
+
+        items = {}
+
+        for row in all_rows:
+            if len(row) <= item_col:
+                continue
+
+            item_number: str = row[item_col].strip()
+
+            if self._not_valid_item_number(item_number):
+                continue
+
+            price = self._valid_price(row[price_col] if len(row) > price_col else '')
+            price_rrc = self._valid_price(row[price_rrc_col] if len(row) > price_rrc_col else '')
+
+            if price is None:
+                continue
+
+            amount = row[amount_col] if len(row) > amount_col else ''
+            availability = self._valid_availability_export_file(
+                row[avail_col] if len(row) > avail_col else '')
+
+            items[item_number] = {
+                'price': price,
+                'price_rrc': price_rrc if price_rrc else '0',
+                'amount': amount,
+                'availability': availability
+            }
+
+        if not items:
+            logger.warning("The Excel file does not contain valid data.")
+        return items
+
     def _set_data_to_google_sheets_for_update_price(self, excel_items):
 
         if not excel_items:
             logger.warning("No data to update in Google Sheets.")
             return
 
-        sheet = self.connect_to_google()
-        missing_items = {}
+        sheet = self.connect_to_google(self.sheet_id)
+        all_rows = sheet.getRows()
+
+        item_col = self._col_letter_to_index(self.item_number_google_sheets)
+        title_col = self._col_letter_to_index(self.title_google_sheets)
+        price_col = self._col_letter_to_index(self.price_column_google_sheets)
+        rrp_col = self._col_letter_to_index(self.recommended_retail_price_column_google_sheets)
+        amount_col = self._col_letter_to_index(self.amount_column_google_sheets)
+        avail_col = self._col_letter_to_index(self.available_column_google_sheets)
+        max_col = max(item_col, title_col, price_col, rrp_col, amount_col, avail_col)
 
         google_items = set()
-        for i in range(1, sheet.rowCount + 1):
-            item_number = sheet[f'{self.item_number_google_sheets}{i}']
-            if not self._not_valid_item_number(item_number):
-                google_items.add(item_number)
+        for row in all_rows:
+            if len(row) > item_col:
+                item_number = row[item_col]
+                if not self._not_valid_item_number(item_number):
+                    google_items.add(item_number)
 
+        missing_items = {}
         for item_number, data in excel_items.items():
             if item_number not in google_items:
                 missing_items[item_number] = data
-                logger.info(
-                    f"Item {item_number} exists in Excel but not in Google Sheets")
+                logger.info(f"Item {item_number} exists in Excel but not in Google Sheets")
 
         if missing_items:
             with open('missing_items.json', 'w', encoding='utf-8') as f:
                 json.dump(missing_items, f, ensure_ascii=False, indent=4)
             logger.info(f"Missing items were saved to missing_items.json")
 
-        for i in range(1, sheet.rowCount + 1):
-            item_number = sheet[f'{self.item_number_google_sheets}{i}']
+        for row in all_rows:
+            while len(row) <= max_col:
+                row.append('')
+
+            item_number = row[item_col]
 
             if self._not_valid_item_number(item_number):
                 continue
 
-            title = self._replaceSpace(sheet[f'{self.title_google_sheets}{i}'])
-            sheet[f'{self.title_google_sheets}{i}'] = title
+            row[title_col] = self._replaceSpace(row[title_col])
 
             if item_number in excel_items:
                 data = excel_items[item_number]
-
-                sheet[f'{self.amount_column_google_sheets}{i}'] = data['amount']
-                sheet[f'{self.price_column_google_sheets}{i}'] = data['price']
-                sheet[f'{self.recommended_retail_price_column_google_sheets}{i}'] = data['price_rrc']
-                sheet[f'{self.available_column_google_sheets}{i}'] = data['availability']
+                row[amount_col] = data['amount']
+                row[price_col] = data['price']
+                row[rrp_col] = data['price_rrc']
+                row[avail_col] = data['availability']
                 logger.info(f"Product data has been updated {item_number}.")
-
             else:
-                sheet[f'{self.available_column_google_sheets}{i}'] = "FALSE"
-                logger.info(
-                    f"The item {item_number} was not found in Excel. Available set 'False'.")
+                row[avail_col] = "FALSE"
+                logger.info(f"The item {item_number} was not found in Excel. Available set 'False'.")
+
+        sheet.updateRows(all_rows)
 
     def _get_data_from_excel_file(self):
         logger.info("Getting data from an Excel file...")
@@ -243,30 +310,41 @@ class GPrice:
             logger.warning("No data to update in Google Sheets.")
             return
 
-        sheet = self.connect_to_google()
+        sheet = self.connect_to_google(self.sheet_id)
+        all_rows = sheet.getRows()
 
-        for i in range(1, sheet.rowCount + 1):
-            item_number = sheet[f'{self.item_number_google_sheets}{i}']
+        item_col = self._col_letter_to_index(self.item_number_google_sheets)
+        amount_col = self._col_letter_to_index(self.amount_column_google_sheets)
+        rrp_col = self._col_letter_to_index(self.recommended_retail_price_column_google_sheets)
+        max_col = max(item_col, amount_col, rrp_col)
+
+        for row in all_rows:
+            while len(row) <= max_col:
+                row.append('')
+
+            item_number = row[item_col]
 
             if self._not_valid_item_number(item_number):
                 continue
 
             if item_number in excel_items:
                 data = excel_items[item_number]
-
-                sheet[f'{self.amount_column_google_sheets}{i}'] = data['amount']
-                sheet[f'{self.recommended_retail_price_column_google_sheets}{i}'] = data['price']
+                row[amount_col] = data['amount']
+                row[rrp_col] = data['price']
                 logger.info(f"Product data has been updated {item_number}.")
             else:
-                sheet[f'{self.recommended_retail_price_column_google_sheets}{i}'] = 0
-                logger.info(
-                    f"The item {item_number} was not found in Excel. The price is set to 0.")
+                row[rrp_col] = 0
+                logger.info(f"The item {item_number} was not found in Excel. The price is set to 0.")
+
+        sheet.updateRows(all_rows)
 
     def updatePrice(self):
+        if self.path_file is None:
+            items = self._get_data_from_google_file_for_update_price()
+        else:
+            items = self._get_data_from_excel_file_for_update_price()
 
-        excel_items = self._get_data_from_excel_file_for_update_price()
-
-        self._set_data_to_google_sheets_for_update_price(excel_items)
+        self._set_data_to_google_sheets_for_update_price(items)
 
     def updateOnlyRRP(self):
 
@@ -277,11 +355,10 @@ class GPrice:
 
 def main():
 
-    # print(dotenv_values()['GRAND_ELTOS'])
-
     up = GPrice(
         sheet_id=dotenv_values()['GRAND_ELTOS'],
-        path_file=dotenv_values()['PATH_FILE_EXCEL_PRICE_RRP'],
+        from_google=dotenv_values()['PATH_GOOGLE_NEW_PRICE_RRP'],
+        # path_file=dotenv_values()['PATH_FILE_EXCEL_PRICE_RRP'],
     )
 
     up.updatePrice()

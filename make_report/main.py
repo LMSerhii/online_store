@@ -9,16 +9,13 @@ import pprint
 
 def main():
     try:
-        # Ініціалізація конфігурації
         config = AppConfig.from_env()
         export_config = PromExportConfig.from_env()
         logger.info("Configuration loaded successfully")
 
-        # Ініціалізація сервісів
         status_service = StatusService(config, export_config)
         logger.info("Status service initialized successfully")
 
-        # Виконання експорту
         exporter = ExportProm(export_config, status_service)
         logger.info("Export prom initialized successfully")
 
@@ -27,7 +24,6 @@ def main():
         if data:
             os.makedirs("data", exist_ok=True)
 
-            # Експорт даних в Excel
             exporter.export_to_excel(data, f"data/{export_config.month}.xlsx")
             logger.info("Export completed successfully")
         else:
