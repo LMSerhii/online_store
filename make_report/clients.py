@@ -27,7 +27,11 @@ class NovaPoshtaClient(BaseAPIClient):
             }
         }
         response = self.post(self.base_url, json=data)
-        return response['data'][0]['Status']
+        items = response.get('data', [])
+        if not items:
+            logger.warning(f"Nova Poshta: barcode {barcode} not found")
+            return ""
+        return items[0].get('Status', "")
 
 
 class UkrPoshtaClient(BaseAPIClient):
@@ -39,7 +43,10 @@ class UkrPoshtaClient(BaseAPIClient):
         headers = {'Authorization': f'Bearer {self.bearer_token}'}
         url = f'{self.base_url}/statuses/last?barcode={barcode}'
         response = self.get(url, headers=headers)
-        return response['eventName']
+        if not response:
+            logger.warning(f"Ukrposhta: barcode {barcode} not found")
+            return ""
+        return response.get('eventName', "")
 
 
 class PromClient(BaseAPIClient):
