@@ -59,13 +59,19 @@ def parse_num(v) -> float:
     except (InvalidOperation, ValueError):
         return 0.0
 
-def normalize_code(x):
-    if pd.isna(x):
+def extract_article(code) -> str | None:
+    """Повертає чистий артикул без OR| префікса і без цінового сегмента."""
+    if code is None or (isinstance(code, float) and pd.isna(code)):
         return None
-    s = str(x).replace("\n","").replace("\r","").strip()
-    s = s.replace(" ", "")
-    parts = [p.replace(",", ".") for p in s.split("|")]
-    return "|".join(parts)
+    s = str(code).replace("\n", "").replace("\r", "").replace(" ", "").strip()
+    if not s:
+        return None
+    if s.startswith("OR|"):
+        s = s[3:]
+    parts = s.split("|")
+    # відкидаємо останній сегмент (ціна)
+    article = "|".join(parts[:-1])
+    return article if article else None
 
 def cell_text(v) -> str:
     if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -80,15 +86,41 @@ def first_non_empty(series: pd.Series):
                 return vs
     return None
 
+def add_bar_chart(
+    workbook,
+    sheet_name: str,
+    chart_sheet,
+    title: str,
+    categories_range: str,
+    values_range: str,
+    y_axis_name: str,
+    x_axis_name: str,
+    position: str,
+    x_scale: float = 2.0,
+    y_scale: float = 2.0,
+):
+    chart = workbook.add_chart({"type": "bar"})
+    chart.add_series({
+        "name": f"='{sheet_name}'!{values_range.split('!')[-1].split(':')[0].rstrip('0123456789')}$1",
+        "categories": categories_range,
+        "values": values_range,
+        "data_labels": {"value": False},
+    })
+    chart.set_title({"name": title})
+    chart.set_y_axis({"name": y_axis_name, "reverse": True, "num_font": {"size": 9}})
+    chart.set_x_axis({"name": x_axis_name})
+    chart_sheet.insert_chart(position, chart, {"x_scale": x_scale, "y_scale": y_scale})
+    return chart
+
 def main():
     # 1) Фільтр кодів
     with open(IN_JSON, "r", encoding="utf-8") as f:
         raw_list = json.load(f)
-    target_codes = {
-        normalize_code(item.get("name", "")) for item in raw_list
-        if normalize_code(item.get("name", "")) is not None
+    target_articles = {
+        extract_article(item.get("name", "")) for item in raw_list
+        if extract_article(item.get("name", "")) is not None
     }
-    if not target_codes:
+    if not target_articles:
         raise RuntimeError("У bbq.json не знайдено жодного валідного коду.")
 
     # 2) Читання XLSX (без заголовків)
@@ -114,17 +146,17 @@ def main():
 
     # 4) Підготовка + фільтр по F
     df = pd.DataFrame({
-        "code_norm": s_code.map(normalize_code),
-        "qty":  s_qty.map(parse_num),      # рядкова кількість
-        "H":    s_h.map(parse_num),        # рядкова сума продажу
-        "I":    s_i.map(parse_num),        # рядкова сума собівартості
+        "article": s_code.map(extract_article),
+        "qty":  s_qty.map(parse_num),
+        "H":    s_h.map(parse_num),
+        "I":    s_i.map(parse_num),
         "name_full": s_name.map(lambda x: None if pd.isna(x) else str(x).strip()),
         "filter_text": s_filter.map(cell_text),
     })
 
     # Фільтр кодів
-    df = df[df["code_norm"].notna()]
-    df = df[df["code_norm"].isin(target_codes)]
+    df = df[df["article"].notna()]
+    df = df[df["article"].isin(target_articles)]
 
     # Фільтр по колонці F (містить підрядок "эдвенчерс")
     substr = (FILTER_SUBSTR or "").strip().lower()
@@ -146,9 +178,9 @@ def main():
     df["purch_amount"]  = df["I"]
     df["margin_amount"] = df["sales_amount"] - df["purch_amount"]
 
-    # 6) Агрегація по коду
+    # 6) Агрегація по артикулу
     grouped = (
-        df.groupby("code_norm", as_index=False)
+        df.groupby("article", as_index=False)
           .agg({
               "qty": "sum",
               "sales_amount": "sum",
@@ -160,8 +192,8 @@ def main():
 
     # 7) Фінальна таблиця
     out = pd.DataFrame({
-        "Назва": grouped["name_full"].fillna(grouped["code_norm"]),
-        "Код": grouped["code_norm"],
+        "Назва": grouped["name_full"].fillna(grouped["article"]),
+        "Код": grouped["article"],
         "Кількість (ΣD)": grouped["qty"].round(2),
         "Сума продажу (ΣH)": grouped["sales_amount"].round(2),
         "Собівартість (ΣI)": grouped["purch_amount"].round(2),
@@ -182,6 +214,9 @@ def main():
         def rng(col: str, r1: int, r2: int) -> str:
             return f"='{sheet}'!${col}${r1}:${col}${r2}"
 
+        def series_name(col_letter: str) -> str:
+            return f"='{sheet}'!${col_letter}$1"
+
         # ==== Лист із графіками "все-в-одному" ====
         charts_all = wb.add_worksheet("Charts_All")
 
@@ -196,45 +231,22 @@ def main():
         sum_all = rng("D", start_row, end_row)
         mar_all = rng("F", start_row, end_row)
 
-        # 1) КІЛЬКІСТЬ (горизонтальний bar)
-        ch_qty_all = wb.add_chart({"type": "bar"})
-        ch_qty_all.add_series({
-            "name": f"='{sheet}'!$C$1",
-            "categories": cat_all,
-            "values": qty_all,
-            "data_labels": {"value": False},
-        })
-        ch_qty_all.set_title({"name": f"Кількість продажів (усі {n})"})
-        # Для bar-графіка категорії на осі Y. Робимо найбільші зверху:
-        ch_qty_all.set_y_axis({"name": "Артикул", "reverse": True, "num_font": {"size": 9}})
-        ch_qty_all.set_x_axis({"name": "Кількість"})
-        charts_all.insert_chart("B2", ch_qty_all, {"x_scale": 2.0, "y_scale": 2.0})
+        def _add_bar(chart_sheet, title, categories, values, col_letter, y_name, x_name, position, x_scale=2.0, y_scale=2.0):
+            chart = wb.add_chart({"type": "bar"})
+            chart.add_series({
+                "name": series_name(col_letter),
+                "categories": categories,
+                "values": values,
+                "data_labels": {"value": False},
+            })
+            chart.set_title({"name": title})
+            chart.set_y_axis({"name": y_name, "reverse": True, "num_font": {"size": 9}})
+            chart.set_x_axis({"name": x_name})
+            chart_sheet.insert_chart(position, chart, {"x_scale": x_scale, "y_scale": y_scale})
 
-        # 2) СУМА ПРОДАЖУ (горизонтальний bar)
-        ch_sum_all = wb.add_chart({"type": "bar"})
-        ch_sum_all.add_series({
-            "name": f"='{sheet}'!$D$1",
-            "categories": cat_all,
-            "values": sum_all,
-            "data_labels": {"value": False},
-        })
-        ch_sum_all.set_title({"name": f"Сума продажу (усі {n})"})
-        ch_sum_all.set_y_axis({"name": "Артикул", "reverse": True, "num_font": {"size": 9}})
-        ch_sum_all.set_x_axis({"name": "Сума, ₴"})
-        charts_all.insert_chart("B36", ch_sum_all, {"x_scale": 2.0, "y_scale": 2.0})
-
-        # 3) МАРЖА (горизонтальний bar)
-        ch_mar_all = wb.add_chart({"type": "bar"})
-        ch_mar_all.add_series({
-            "name": f"='{sheet}'!$F$1",
-            "categories": cat_all,
-            "values": mar_all,
-            "data_labels": {"value": False},
-        })
-        ch_mar_all.set_title({"name": f"Маржа (усі {n})"})
-        ch_mar_all.set_y_axis({"name": "Артикул", "reverse": True, "num_font": {"size": 9}})
-        ch_mar_all.set_x_axis({"name": "Сума, ₴"})
-        charts_all.insert_chart("B70", ch_mar_all, {"x_scale": 2.0, "y_scale": 2.0})
+        _add_bar(charts_all, f"Кількість продажів (усі {n})", cat_all, qty_all, "C", "Артикул", "Кількість",   "B2")
+        _add_bar(charts_all, f"Сума продажу (усі {n})",       cat_all, sum_all, "D", "Артикул", "Сума, ₴",    "B36")
+        _add_bar(charts_all, f"Маржа (усі {n})",              cat_all, mar_all, "F", "Артикул", "Сума, ₴",    "B70")
 
         # ==== Необов'язкове пагінування (для зручності перегляду) ====
         PAGE = 50  # міняй за потреби; 0 або None — вимкнути
@@ -256,19 +268,14 @@ def main():
                 s = start_row + p * PAGE
                 e = min(start_row + (p + 1) * PAGE - 1, end_row)
 
-                cat_p = rng("B", s, e)
-                qty_p = rng("C", s, e)
-
-                ch = wb.add_chart({"type": "bar"})
-                ch.add_series({
-                    "name": f"='{sheet}'!$C$1",
-                    "categories": cat_p,
-                    "values": qty_p,
-                })
-                ch.set_title({"name": f"Кількість (позиції {s - 1}–{e - 1} з {n})"})
-                ch.set_y_axis({"name": "Артикул", "reverse": True, "num_font": {"size": 9}})
-                ch.set_x_axis({"name": "Кількість"})
-                charts_pg.insert_chart(anchors[p], ch, {"x_scale": 1.5, "y_scale": 1.5})
+                _add_bar(
+                    charts_pg,
+                    f"Кількість (позиції {s - 1}–{e - 1} з {n})",
+                    rng("B", s, e),
+                    rng("C", s, e),
+                    "C", "Артикул", "Кількість",
+                    anchors[p], x_scale=1.5, y_scale=1.5,
+                )
 
     print(f"✅ Звіт з графіками (з фільтром F містить '{FILTER_SUBSTR}'): {OUT_XLSX.resolve()}")
 
